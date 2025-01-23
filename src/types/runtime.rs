@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::types::{cst::Cst, models::Mdl, MkVal};
+use crate::types::{cst::Cst, models::Mdl, EntityVariableKey, MkVal};
 use crate::types::cst::InstantiatedCst;
 use crate::types::pattern::{PatternItem, PatternValue};
 
@@ -24,7 +24,7 @@ impl RuntimeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SystemState {
-    pub variables: HashMap<String, RuntimeValue>,
+    pub variables: HashMap<EntityVariableKey, RuntimeValue>,
     pub instansiated_csts: HashMap<String, InstantiatedCst>,
 }
 

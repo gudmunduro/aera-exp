@@ -2,14 +2,14 @@ mod seed;
 pub mod pattern_matching;
 mod simulation;
 
-use crate::types::runtime::{RuntimeData, RuntimeValue, RuntimeVariable};
-use log::log;
+use crate::types::runtime::{RuntimeData, RuntimeValue};
 use crate::runtime::pattern_matching::{compute_instantiated_states, models_for_cst};
+use crate::types::EntityVariableKey;
 
 pub fn run_aera() {
     let mut runtime_data = RuntimeData::new();
     seed::setup_seed(&mut runtime_data);
-    runtime_data.current_state.variables.insert("position".to_string(), RuntimeValue::Number(0.0));
+    runtime_data.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(0.0));
 
     loop {
         let instantiated_states = compute_instantiated_states(&runtime_data, &runtime_data.current_state);
