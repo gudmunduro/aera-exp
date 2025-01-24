@@ -37,8 +37,10 @@ pub fn setup_seed(data: &mut RuntimeData) {
             },
             right: Fact {
                 pattern: MdlRightValue::IMdl(IMdl {
-                    id: "mdl_move".to_string(),
-                    params: vec![]
+                    model_id: "mdl_move".to_string(),
+                    params: vec![
+                        PatternItem::Binding("np".to_string()),
+                    ]
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -51,14 +53,16 @@ pub fn setup_seed(data: &mut RuntimeData) {
         Mdl {
             model_id: "mdl_move".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), params: vec![] }),
+                pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), params: vec![
+                    PatternItem::Binding("np".to_string()),
+                ] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: "h".to_string(),
                     var_name: "position".to_string(),
-                    value: PatternItem::Value(PatternValue::Number(0.0))
+                    value: PatternItem::Binding("np".to_string())
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },

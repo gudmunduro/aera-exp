@@ -8,10 +8,14 @@ pub mod pattern;
 
 type Time = f64;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Command {
     pub name: String,
     pub params: Pattern,
+}
+
+pub trait MatchesFact<T: Clone> {
+    fn matches_fact(&self, fact: &Fact<T>) -> bool;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -29,10 +33,17 @@ impl<T: Clone> Fact<T> {
     }
 }
 
-impl Fact<MkVal> {
-    pub fn matches_fact(&self, fact: &Fact<AssignedMkVal>) -> bool {
+impl MatchesFact<AssignedMkVal> for Fact<MkVal> {
+    fn matches_fact(&self, fact: &Fact<AssignedMkVal>) -> bool {
         // TODO: Handle time
         self.pattern.matches_assigned_mk_val(&fact.pattern)
+    }
+}
+
+impl MatchesFact<MkVal> for Fact<MkVal> {
+    fn matches_fact(&self, fact: &Fact<MkVal>) -> bool {
+        // TODO: Handle time
+        self.pattern.matches_mk_val(&fact.pattern)
     }
 }
 
@@ -48,6 +59,15 @@ impl MkVal {
         AssignedMkVal::from_mk_val(self, value)
     }
 
+    /// Checks if two mk.val are equal, assumes bindings are equivalent to wildcard
+    pub fn matches_mk_val(&self, mk_val: &MkVal) -> bool {
+        let matches_value = match (&self.value, &mk_val.value) {
+            (PatternItem::Any | PatternItem::Binding(_), _) | (_, PatternItem::Any | PatternItem::Binding(_)) => true,
+            (PatternItem::Value(v1), PatternItem::Value(v2)) => v1 == v2
+        };
+        self.entity_id == mk_val.entity_id && self.var_name == mk_val.var_name && matches_value
+    }
+
     pub fn matches_assigned_mk_val(&self, mk_val: &AssignedMkVal) -> bool {
         let matches_value = match &self.value {
             PatternItem::Any => true,
@@ -55,6 +75,13 @@ impl MkVal {
             PatternItem::Value(value) => mk_val.value == value
         };
         self.entity_id == mk_val.entity_id && self.var_name == mk_val.var_name && matches_value
+    }
+
+    pub fn entity_key(&self) -> EntityVariableKey {
+        EntityVariableKey {
+            entity_id: self.entity_id.clone(),
+            var_name: self.var_name.clone(),
+        }
     }
 }
 

@@ -46,7 +46,7 @@ pub enum RuntimeValue {
 impl PartialEq<PatternValue> for RuntimeValue {
     fn eq(&self, other: &PatternValue) -> bool {
         match (self, other) {
-            (RuntimeValue::Number(n), PatternValue::Number(n2)) => n == n2,
+            (RuntimeValue::Number(n), PatternValue::Number(n2)) => (n - n2).abs() < 0.1,
             (RuntimeValue::String(s), PatternValue::String(s2)) => s == s2,
             _ => false
         }
@@ -56,7 +56,7 @@ impl PartialEq<PatternValue> for RuntimeValue {
 impl PartialEq<&PatternValue> for RuntimeValue {
     fn eq(&self, other: &&PatternValue) -> bool {
         match (self, other) {
-            (RuntimeValue::Number(n), PatternValue::Number(n2)) => n == n2,
+            (RuntimeValue::Number(n), PatternValue::Number(n2)) => (n - n2).abs() < 0.1,
             (RuntimeValue::String(s), PatternValue::String(s2)) => s == s2,
             _ => false
         }

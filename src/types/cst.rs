@@ -24,8 +24,8 @@ impl Cst {
         self.facts
             .iter()
             .all(|fact|  match &fact.pattern.value {
-                PatternItem::Binding(_) | PatternItem::Any => state.variables.contains_key(&fact.pattern.var_name),
-                PatternItem::Value(value) => state.variables.get(&fact.pattern.var_name).map(|v| v == value).unwrap_or(false),
+                PatternItem::Binding(_) | PatternItem::Any => state.variables.contains_key(&fact.pattern.entity_key()),
+                PatternItem::Value(value) => state.variables.get(&fact.pattern.entity_key()).map(|v| v == value).unwrap_or(false),
             })
     }
 
@@ -91,7 +91,7 @@ impl InstantiatedCst {
     pub fn try_instantiate_from_current_state(cst: &Cst, state: &SystemState) -> Option<InstantiatedCst> {
         let facts: Option<Vec<Fact<AssignedMkVal>>> = cst.facts
             .iter()
-            .map(|f| Some(f.with_pattern(f.pattern.assign_value(state.variables.get(&f.pattern.var_name)?))))
+            .map(|f| Some(f.with_pattern(f.pattern.assign_value(state.variables.get(&f.pattern.entity_key())?))))
             .collect();
         let facts = facts?;
 

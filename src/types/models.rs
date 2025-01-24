@@ -8,7 +8,7 @@ use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
 
 pub type GoalName = String;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Mdl {
     pub model_id: String,
     pub left: Fact<MdlLeftValue>,
@@ -57,12 +57,26 @@ impl Mdl {
     }
 
     /// Get a bound version of this model from rhs imdl and an already bound model of the same type as in imdl
-    pub fn backward_chain_known_bindings_from_imdl(&self, bound_model: &BoundModel) -> Vec<BoundModel> {
-        unimplemented!()
+    pub fn backward_chain_known_bindings_from_imdl(&self, bound_model: &BoundModel) -> BoundModel {
+        let imdl = self.right.pattern.as_imdl();
+        let bindings = bound_model.model.binding_params()
+            .iter()
+            .zip(&imdl.params)
+            .filter_map(|(param, pattern)| match pattern {
+                PatternItem::Binding(b) => bound_model.bindings.get(param)
+                    .map(|value| (b.clone(), value.clone())),
+                _ => None
+            })
+            .collect();
+
+        BoundModel {
+            model: self.clone(),
+            bindings
+        }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MdlLeftValue {
     ICst(ICst),
     Command(Command),
@@ -92,7 +106,7 @@ impl MdlLeftValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MdlRightValue {
     IMdl(IMdl),
     MkVal(MkVal),
@@ -122,15 +136,15 @@ impl MdlRightValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IMdl {
-    pub id: String,
+    pub model_id: String,
     pub params: Pattern
 }
 
 impl IMdl {
     pub fn expand(&self, data: &RuntimeData) -> Mdl {
-        let model = data.models.get(&self.id).expect(&format!("Model in imdl does not exist {}", self.id)).clone();
+        let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
 
         // TODO: Replace bindings in in lhs and rhs patterns with params in imdl
 
@@ -139,7 +153,7 @@ impl IMdl {
 
     pub fn instantiate(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> BoundModel {
         let params = bind_values_to_pattern(&self.params, bindings);
-        let model = data.models.get(&self.id).expect(&format!("Model in imdl does not exist {}", self.id)).clone();
+        let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
         let binding_params = model.binding_params().into_iter().zip(params).collect::<HashMap<_, _>>();
 
         BoundModel {
@@ -149,7 +163,7 @@ impl IMdl {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BoundModel {
     pub bindings: HashMap<String, RuntimeValue>,
     pub model: Mdl,

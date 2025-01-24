@@ -84,10 +84,10 @@ pub fn all_req_models(data: &RuntimeData) -> Vec<Mdl> {
 
 pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, RuntimeValue>) -> Vec<RuntimeValue> {
     pattern.iter()
-        .map(|p| match p {
+        .filter_map(|p| match p {
             PatternItem::Any => panic!("Wildcard in parma pattern is currently not supported"),
-            PatternItem::Binding(b) => bindings[b].clone(),
-            PatternItem::Value(v) => v.clone().into()
+            PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
+            PatternItem::Value(v) => Some(v.clone().into())
         })
         .collect()
 }
