@@ -1,11 +1,9 @@
 use crate::types::cst::{ICst, InstantiatedCst};
 use crate::types::models::{BoundModel, Mdl, MdlLeftValue, MdlRightValue};
-use crate::types::runtime::{
-    RuntimeData, RuntimeValue, RuntimeVariable, SystemState,
-};
+use crate::types::pattern::{Pattern, PatternItem};
+use crate::types::runtime::{RuntimeData, RuntimeValue, RuntimeVariable, SystemState};
 use crate::types::{Fact, TimePatternRange};
 use std::collections::HashMap;
-use crate::types::pattern::{Pattern, PatternItem};
 
 pub enum PatternMatchResult {
     True(HashMap<String, RuntimeValue>),
@@ -15,10 +13,13 @@ pub enum PatternMatchResult {
 pub fn compute_instantiated_states(
     data: &RuntimeData,
     state: &SystemState,
-) -> Vec<InstantiatedCst> {
+) -> HashMap<String, InstantiatedCst> {
     data.csts
         .iter()
-        .filter_map(|(id, cst)| InstantiatedCst::try_instantiate_from_current_state(cst, state))
+        .filter_map(|(id, cst)| {
+            InstantiatedCst::try_instantiate_from_current_state(cst, state)
+                .map(|cst| (id.clone(), cst))
+        })
         .collect()
 }
 
@@ -55,8 +56,16 @@ pub fn all_causal_models(data: &RuntimeData) -> Vec<Mdl> {
         .iter()
         .filter(|(_, m)| match m {
             Mdl {
-                left: Fact { pattern:  MdlLeftValue::Command(_), .. },
-                right: Fact { pattern: MdlRightValue::MkVal(_), .. },
+                left:
+                    Fact {
+                        pattern: MdlLeftValue::Command(_),
+                        ..
+                    },
+                right:
+                    Fact {
+                        pattern: MdlRightValue::MkVal(_),
+                        ..
+                    },
                 ..
             } => true,
             _ => false,
@@ -71,8 +80,16 @@ pub fn all_req_models(data: &RuntimeData) -> Vec<Mdl> {
         .iter()
         .filter(|(_, m)| match m {
             Mdl {
-                left: Fact { pattern: MdlLeftValue::ICst(_), .. },
-                right: Fact { pattern: MdlRightValue::IMdl(_), .. },
+                left:
+                    Fact {
+                        pattern: MdlLeftValue::ICst(_),
+                        ..
+                    },
+                right:
+                    Fact {
+                        pattern: MdlRightValue::IMdl(_),
+                        ..
+                    },
                 ..
             } => true,
             _ => false,
@@ -82,12 +99,16 @@ pub fn all_req_models(data: &RuntimeData) -> Vec<Mdl> {
         .collect()
 }
 
-pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, RuntimeValue>) -> Vec<RuntimeValue> {
-    pattern.iter()
+pub fn bind_values_to_pattern(
+    pattern: &Pattern,
+    bindings: &HashMap<String, RuntimeValue>,
+) -> Vec<RuntimeValue> {
+    pattern
+        .iter()
         .filter_map(|p| match p {
             PatternItem::Any => panic!("Wildcard in parma pattern is currently not supported"),
             PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
-            PatternItem::Value(v) => Some(v.clone().into())
+            PatternItem::Value(v) => Some(v.clone().into()),
         })
         .collect()
 }

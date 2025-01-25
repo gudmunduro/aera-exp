@@ -113,3 +113,9 @@ impl AssignedMkVal {
         }
     }
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RuntimeCommand {
+    pub name: String,
+    pub params: Vec<RuntimeValue>,
+}

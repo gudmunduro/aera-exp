@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+use crate::runtime::pattern_matching::bind_values_to_pattern;
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{AssignedMkVal, RuntimeValue};
+use crate::types::runtime::{AssignedMkVal, RuntimeCommand, RuntimeValue};
 
 pub mod runtime;
 pub mod models;
@@ -12,6 +14,21 @@ type Time = f64;
 pub struct Command {
     pub name: String,
     pub params: Pattern,
+}
+
+impl Command {
+    pub fn to_runtime_command(&self, bindings: &HashMap<String, RuntimeValue>) -> RuntimeCommand {
+        let params = bind_values_to_pattern(&self.params, bindings);
+
+        if params.len() < self.params.len() {
+            panic!("Cannot get command {} from model. Bindings missing for params", &self.name);
+        }
+
+        RuntimeCommand {
+            name: self.name.clone(),
+            params,
+        }
+    }
 }
 
 pub trait MatchesFact<T: Clone> {

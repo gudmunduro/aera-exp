@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use itertools::Itertools;
-use crate::runtime::pattern_matching::{bind_values_to_pattern, PatternMatchResult};
-use crate::types::{Command, Fact, MkVal, PatternItem};
+use crate::runtime::pattern_matching::{bind_values_to_pattern, compute_instantiated_states, PatternMatchResult};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
 use crate::types::cst::ICst;
 use crate::types::pattern::Pattern;
 use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
@@ -151,7 +151,19 @@ impl IMdl {
         unimplemented!()
     }
 
+    pub fn map_bindings_to_model(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> HashMap<String, RuntimeValue> {
+        let model = data.models.get(&self.model_id).unwrap();
+        model.binding_params()
+            .iter()
+            .zip(&self.params)
+            .filter_map(|(binding_name, value)| value
+                .get_value_with_bindings(bindings)
+                .map(|v| (binding_name.clone(), v)))
+            .collect()
+    }
+
     pub fn instantiate(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> BoundModel {
+        // TODO: Stop using bind_values_to_pattern here and allow instantiating with part of bindings regardless of position
         let params = bind_values_to_pattern(&self.params, bindings);
         let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
         let binding_params = model.binding_params().into_iter().zip(params).collect::<HashMap<_, _>>();
@@ -167,4 +179,30 @@ impl IMdl {
 pub struct BoundModel {
     pub bindings: HashMap<String, RuntimeValue>,
     pub model: Mdl,
+}
+
+impl BoundModel {
+    pub fn rhs_imdl_matches_bound_model(&self, model: &BoundModel, data: &RuntimeData) -> bool {
+        let imdl = self.model.right.pattern.as_imdl();
+        let are_bindings_equal = imdl.map_bindings_to_model(&self.bindings, data) == model.bindings;
+        let are_models_equal = self.model.model_id == model.model.model_id;
+        are_bindings_equal && are_models_equal
+    }
+
+    /// Predict what happens to SystemState after model is executed
+    /// Only meant to be used for casual models, has no effect on other types of models
+    pub fn predict_state_change(&self, state: &SystemState, data: &RuntimeData) -> SystemState {
+        let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
+            return state.clone();
+        };
+
+        let predicted_value = mk_val.value.get_value_with_bindings(&self.bindings)
+            .expect("Binding missing when trying to predict state change");
+
+        let mut new_state = state.clone();
+        new_state.variables.insert(EntityVariableKey::new(&mk_val.entity_id, &mk_val.var_name), predicted_value);
+        new_state.instansiated_csts = compute_instantiated_states(data, &new_state);
+
+        new_state
+    }
 }
