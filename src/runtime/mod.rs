@@ -3,7 +3,7 @@ pub mod pattern_matching;
 mod simulation;
 
 use crate::types::runtime::{RuntimeData, RuntimeValue};
-use crate::runtime::pattern_matching::{compute_instantiated_states, models_for_cst};
+use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::{backward_chain, forward_chain};
 use crate::types::{EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem, PatternValue};
@@ -14,12 +14,9 @@ pub fn run_aera() {
     runtime_data.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(0.0));
     runtime_data.current_state.instansiated_csts = compute_instantiated_states(&runtime_data, &runtime_data.current_state);
 
+    println!("Instantiated composite states");
     for state in runtime_data.current_state.instansiated_csts.values() {
         println!("State: {}", state.cst_id);
-
-        for model in &models_for_cst(&state, &runtime_data) {
-            println!("Model ({}) has been instantiated with forward chaining", model.model.model_id);
-        }
     }
 
     let goal = vec![
