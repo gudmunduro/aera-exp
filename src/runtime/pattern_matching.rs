@@ -2,7 +2,7 @@ use crate::types::cst::{ICst, InstantiatedCst};
 use crate::types::models::{BoundModel, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::{RuntimeData, RuntimeValue, RuntimeVariable, SystemState};
-use crate::types::{Fact, TimePatternRange};
+use crate::types::{Fact, MkVal, TimePatternRange};
 use std::collections::HashMap;
 
 pub enum PatternMatchResult {
@@ -111,4 +111,14 @@ pub fn bind_values_to_pattern(
             PatternItem::Value(v) => Some(v.clone().into()),
         })
         .collect()
+}
+
+pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> bool {
+    facts.iter().all(|f| {
+        state
+            .variables
+            .get(&f.pattern.entity_key())
+            .map(|v| *v == f.pattern.value)
+            .unwrap_or(false)
+    })
 }

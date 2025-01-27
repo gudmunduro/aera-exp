@@ -12,6 +12,7 @@ pub fn run_aera() {
     let mut runtime_data = RuntimeData::new();
     seed::setup_seed(&mut runtime_data);
     runtime_data.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(0.0));
+    runtime_data.current_state.variables.insert(EntityVariableKey::new("c", "position"), RuntimeValue::Number(5.0));
     runtime_data.current_state.instansiated_csts = compute_instantiated_states(&runtime_data, &runtime_data.current_state);
 
     println!("Instantiated composite states");
@@ -24,7 +25,7 @@ pub fn run_aera() {
             pattern: MkVal {
                 entity_id: "h".to_string(),
                 var_name: "position".to_string(),
-                value: PatternItem::Value(PatternValue::Number(1.0)),
+                value: PatternItem::Value(PatternValue::Number(6.0)),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },
@@ -34,8 +35,9 @@ pub fn run_aera() {
     println!("Results of backward chaining");
     println!("{bwd_result:#?}");
 
-    let fwd_result = forward_chain(&goal, &bwd_result, &runtime_data.current_state, &runtime_data);
+    let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &runtime_data.current_state, &runtime_data);
     println!("Results of forward chaining");
+    println!("Goal reachable: {goal_reachable}");
     println!("{fwd_result:#?}");
 }
 

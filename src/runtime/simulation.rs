@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{all_causal_models, all_req_models};
+use crate::runtime::pattern_matching::{all_causal_models, all_req_models, state_matches_facts};
 use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::{bindings_in_pattern, PatternItem};
 use crate::types::runtime::{AssignedMkVal, RuntimeCommand, RuntimeData, SystemState};
@@ -27,13 +27,7 @@ fn get_goal_requirements_for_goal(
     casual_models: &Vec<Mdl>,
     data: &RuntimeData,
 ) -> Vec<BoundModel> {
-    if goal.iter().all(|f| {
-        data.current_state
-            .variables
-            .get(&f.pattern.entity_key())
-            .map(|v| *v == f.pattern.value)
-            .unwrap_or(false)
-    }) {
+    if state_matches_facts(&data.current_state, goal) {
         return vec![];
     }
 
@@ -124,23 +118,25 @@ fn get_goal_requirements_for_goal(
     goal_requirements
 }
 
+#[derive(Debug, Clone)]
+pub struct ForwardChainNode {
+    command: RuntimeCommand,
+    children: Vec<ForwardChainNode>,
+    is_in_goal_path: bool
+}
+
 pub fn forward_chain(
     goal: &Vec<Fact<MkVal>>,
     goal_requirements: &Vec<BoundModel>,
     state: &SystemState,
     data: &RuntimeData,
-) -> Vec<RuntimeCommand> {
-    if goal.iter().all(|f| {
-        state
-            .variables
-            .get(&f.pattern.entity_key())
-            .map(|v| *v == f.pattern.value)
-            .unwrap_or(false)
-    }) {
-        return vec![];
+) -> (Vec<ForwardChainNode>, bool) {
+    if state_matches_facts(state, goal) {
+        return (Vec::new(), true);
     }
 
-    let mut commands = Vec::new();
+    let mut results = Vec::new();
+    let mut is_in_goal_path = false;
 
     let insatiable_req_models = all_req_models(data)
         .into_iter()
@@ -201,13 +197,21 @@ pub fn forward_chain(
             );
 
             let command = fwd_chained_model.model.left.pattern.as_command().to_runtime_command(&fwd_chained_model.bindings);
-            commands.push(command);
 
             let state = fwd_chained_model.predict_state_change(&state, data);
-            commands.extend(forward_chain(goal, goal_requirements, &state, data));
-            break;
+            let (children, is_goal_path) = forward_chain(goal, goal_requirements, &state, data);
+            if is_goal_path {
+                is_in_goal_path = true;
+            }
+
+            let node = ForwardChainNode {
+                command,
+                children,
+                is_in_goal_path
+            };
+            results.push(node);
         }
     }
 
-    commands
+    (results, is_in_goal_path)
 }
