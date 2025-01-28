@@ -26,7 +26,7 @@ pub fn run_aera() {
             pattern: MkVal {
                 entity_id: "o".to_string(),
                 var_name: "position".to_string(),
-                value: PatternItem::Value(PatternValue::Number(6.0)),
+                value: PatternItem::Value(PatternValue::Number(7.0)),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },

@@ -120,7 +120,6 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 pattern: MdlRightValue::IMdl(IMdl {
                     model_id: "mdl_push".to_string(),
                     params: vec![
-                        PatternItem::Binding("np".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ]
                 }),
@@ -137,9 +136,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
         Mdl {
             model_id: "mdl_push".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), params: vec![
-                    PatternItem::Binding("dp".to_string()),
-                ] }),
+                pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), params: vec![] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
@@ -150,8 +147,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: [("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("np".to_string()))), Box::new(Function::Value(PatternItem::Binding("p".to_string())))))].into(),
-            backward_computed: HashMap::new(),
+            forward_computed: [("np".to_string(), Function::Add(Box::new(Function::Value(PatternItem::Binding("p".to_string()))), Box::new(Function::Value(PatternItem::Value(PatternValue::Number(1.0))))))].into(),
+            backward_computed: [("p".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("np".to_string()))), Box::new(Function::Value(PatternItem::Value(PatternValue::Number(1.0))))))].into(),
             confidence: 1.0,
         },
     );
