@@ -48,7 +48,7 @@ pub fn model_lhs_match_cst(
     instantiated_cst: &InstantiatedCst,
     data: &RuntimeData,
 ) -> PatternMatchResult {
-    instantiated_cst.matches_pattern(&icst.pattern, &HashMap::new())
+    instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new())
 }
 
 pub fn all_causal_models(data: &RuntimeData) -> Vec<Mdl> {
@@ -121,4 +121,12 @@ pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> boo
             .map(|v| *v == f.pattern.value)
             .unwrap_or(false)
     })
+}
+
+// Goals are considered equal even if timing is not the same
+pub fn are_goals_equal(goal1: &Vec<Fact<MkVal>>, goal2: &Vec<Fact<MkVal>>) -> bool {
+    goal1.len() == goal2.len()
+        && goal1
+            .iter()
+            .all(|f1| goal2.iter().any(|f2| f1.pattern == f2.pattern))
 }

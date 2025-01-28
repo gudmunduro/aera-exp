@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use anyhow::bail;
 use crate::runtime::pattern_matching::bind_values_to_pattern;
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::{AssignedMkVal, RuntimeCommand, RuntimeValue};
@@ -17,17 +18,17 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn to_runtime_command(&self, bindings: &HashMap<String, RuntimeValue>) -> RuntimeCommand {
+    pub fn to_runtime_command(&self, bindings: &HashMap<String, RuntimeValue>) -> anyhow::Result<RuntimeCommand> {
         let params = bind_values_to_pattern(&self.params, bindings);
 
         if params.len() < self.params.len() {
-            panic!("Cannot get command {} from model. Bindings missing for params", &self.name);
+            bail!("Cannot get command {} from model. Bindings missing for params", &self.name);
         }
 
-        RuntimeCommand {
+        Ok(RuntimeCommand {
             name: self.name.clone(),
             params,
-        }
+        })
     }
 }
 

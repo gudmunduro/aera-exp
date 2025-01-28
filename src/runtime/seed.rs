@@ -71,9 +71,9 @@ pub fn setup_seed(data: &mut RuntimeData) {
     );
 
     data.csts.insert(
-        "cst_cube".to_string(),
+        "cst_obj".to_string(),
         Cst {
-            cst_id: "cst_cube".to_string(),
+            cst_id: "cst_obj".to_string(),
             facts: vec![
                 Fact {
                     pattern: MkVal {
@@ -85,7 +85,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 },
                 Fact {
                     pattern: MkVal {
-                        entity_id: "c".to_string(),
+                        entity_id: "o".to_string(),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                     },
@@ -96,12 +96,12 @@ pub fn setup_seed(data: &mut RuntimeData) {
     );
 
     data.models.insert(
-        "mdl_move_cube_req".to_string(),
+        "mdl_push_req".to_string(),
         Mdl {
-            model_id: "mdl_move_cube_req".to_string(),
+            model_id: "mdl_push_req".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
-                    cst_id: "cst_cube".to_string(),
+                    cst_id: "cst_obj".to_string(),
                     pattern: vec![
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -110,7 +110,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
             },
             right: Fact {
                 pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_move_cube".to_string(),
+                    model_id: "mdl_push".to_string(),
                     params: vec![
                         PatternItem::Binding("np".to_string()),
                     ]
@@ -122,18 +122,18 @@ pub fn setup_seed(data: &mut RuntimeData) {
     );
 
     data.models.insert(
-        "mdl_move_cube".to_string(),
+        "mdl_push".to_string(),
         Mdl {
-            model_id: "mdl_move_cube".to_string(),
+            model_id: "mdl_push".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command{ name: "move_cube".to_string(), params: vec![
+                pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), params: vec![
                     PatternItem::Binding("np".to_string()),
                 ] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
                 pattern: MdlRightValue::MkVal(MkVal {
-                    entity_id: "h".to_string(),
+                    entity_id: "o".to_string(),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("np".to_string())
                 }),

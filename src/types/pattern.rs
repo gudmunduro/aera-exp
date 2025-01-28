@@ -25,6 +25,10 @@ impl PatternItem {
             PatternItem::Value(v) => Some(v.clone().into())
         }
     }
+
+    pub fn is_binding(&self, binding: &str) -> bool {
+        matches!(self, PatternItem::Binding(b) if b == binding)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

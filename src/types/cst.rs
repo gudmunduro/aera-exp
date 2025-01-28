@@ -38,6 +38,26 @@ impl Cst {
             .unique()
             .collect()
     }
+
+    pub fn fill_in_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Cst {
+        let mut facts = self.facts.clone();
+
+        for fact in &mut facts {
+            match &fact.pattern.value {
+                PatternItem::Binding(b) => {
+                    if let Some(binding_val) = bindings.get(b) {
+                        fact.pattern.value = PatternItem::Value(binding_val.clone().into());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Cst {
+            cst_id: self.cst_id.clone(),
+            facts,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -95,14 +115,25 @@ impl InstantiatedCst {
             .collect();
         let facts = facts?;
 
+        // Make sure that variables with same bindings have same value
+        let binding_params = cst.binding_params();
+        let are_bindings_correct = binding_params.iter()
+            .all(|b| facts.iter()
+                .filter(|f| matches!(&f.pattern.pattern_value, PatternItem::Binding(fb) if b == fb))
+                .map(|f| &f.pattern.value).all_equal());
+
+        if !are_bindings_correct {
+            return None;
+        }
+
         Some(InstantiatedCst {
             cst_id: cst.cst_id.clone(),
             facts,
-            binding_params: cst.binding_params()
+            binding_params
         })
     }
 
-    pub fn matches_pattern(&self, pattern: &Pattern, assigned_bindings: &HashMap<String, RuntimeValue>) -> PatternMatchResult {
+    pub fn matches_param_pattern(&self, pattern: &Pattern, assigned_bindings: &HashMap<String, RuntimeValue>) -> PatternMatchResult {
         if pattern.len() != self.binding_params.len() {
             return PatternMatchResult::False;
         }

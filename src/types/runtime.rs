@@ -22,7 +22,7 @@ impl RuntimeData {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SystemState {
     pub variables: HashMap<EntityVariableKey, RuntimeValue>,
     pub instansiated_csts: HashMap<String, InstantiatedCst>,
@@ -34,6 +34,12 @@ impl SystemState {
             variables: HashMap::new(),
             instansiated_csts: HashMap::new(),
         }
+    }
+}
+
+impl PartialEq for SystemState {
+    fn eq(&self, other: &SystemState) -> bool {
+        self.variables == other.variables
     }
 }
 

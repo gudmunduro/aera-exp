@@ -45,9 +45,9 @@ impl Mdl {
             MdlLeftValue::ICst(icst) => icst,
             _ => return None
         };
-        let instantiated_cst = state.instansiated_csts.get(&icst.cst_id).unwrap();
+        let instantiated_cst = state.instansiated_csts.get(&icst.cst_id)?;
 
-        match instantiated_cst.matches_pattern(&icst.pattern, &HashMap::new()) {
+        match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
             PatternMatchResult::True(bindings) => Some(BoundModel {
                 bindings,
                 model: self.clone()
@@ -143,14 +143,6 @@ pub struct IMdl {
 }
 
 impl IMdl {
-    pub fn expand(&self, data: &RuntimeData) -> Mdl {
-        let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
-
-        // TODO: Replace bindings in in lhs and rhs patterns with params in imdl
-
-        unimplemented!()
-    }
-
     pub fn map_bindings_to_model(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> HashMap<String, RuntimeValue> {
         let model = data.models.get(&self.model_id).unwrap();
         model.binding_params()
@@ -163,13 +155,11 @@ impl IMdl {
     }
 
     pub fn instantiate(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> BoundModel {
-        // TODO: Stop using bind_values_to_pattern here and allow instantiating with part of bindings regardless of position
-        let params = bind_values_to_pattern(&self.params, bindings);
         let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
-        let binding_params = model.binding_params().into_iter().zip(params).collect::<HashMap<_, _>>();
+        let bindings = self.map_bindings_to_model(bindings, data);
 
         BoundModel {
-            bindings: binding_params,
+            bindings,
             model
         }
     }
