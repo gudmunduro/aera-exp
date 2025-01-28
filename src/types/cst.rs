@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use crate::runtime::pattern_matching::PatternMatchResult;
 use crate::types::{Fact, MkVal, PatternItem};
-use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::Pattern;
-use crate::types::runtime::{AssignedMkVal, RuntimeData, RuntimeValue, RuntimeVariable, SystemState};
+use crate::types::runtime::{AssignedMkVal, RuntimeData, RuntimeValue, SystemState};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cst {
@@ -211,6 +210,7 @@ impl InstantiatedCst {
 enum BindingValue {
     Any,
     Value(RuntimeValue),
+    #[allow(unused)]
     BoundVariable(String, RuntimeValue),
     UnboundVariable(String),
 }

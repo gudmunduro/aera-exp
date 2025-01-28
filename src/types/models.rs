@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use itertools::Itertools;
-use crate::runtime::pattern_matching::{bind_values_to_pattern, compute_instantiated_states, PatternMatchResult};
+use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatchResult};
 use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
 use crate::types::cst::ICst;
 use crate::types::pattern::Pattern;

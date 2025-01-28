@@ -118,7 +118,8 @@ impl TimePatternRange {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TimePatternValue {
     Time(Time),
-    Any
+    Any,
+    Binding(String)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

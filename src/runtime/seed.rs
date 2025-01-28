@@ -1,7 +1,7 @@
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
-use crate::types::pattern::{PatternItem, PatternValue};
+use crate::types::pattern::PatternItem;
 use crate::types::runtime::RuntimeData;
 
 pub fn setup_seed(data: &mut RuntimeData) {

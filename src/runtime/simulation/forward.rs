@@ -6,6 +6,7 @@ use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, RuntimeData, SystemState};
 
 #[derive(Debug, Clone)]
+#[allow(unused)]
 pub struct ForwardChainNode {
     command: RuntimeCommand,
     children: Vec<ForwardChainNode>,

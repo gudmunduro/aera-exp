@@ -1,8 +1,8 @@
-use crate::types::cst::{ICst, InstantiatedCst};
-use crate::types::models::{BoundModel, Mdl, MdlLeftValue, MdlRightValue};
+use crate::types::cst::InstantiatedCst;
+use crate::types::models::{Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{RuntimeData, RuntimeValue, RuntimeVariable, SystemState};
-use crate::types::{Fact, MkVal, TimePatternRange};
+use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
+use crate::types::{Fact, MkVal};
 use std::collections::HashMap;
 
 pub enum PatternMatchResult {
