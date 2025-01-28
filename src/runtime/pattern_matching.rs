@@ -23,34 +23,6 @@ pub fn compute_instantiated_states(
         .collect()
 }
 
-pub fn models_for_cst(instantiated_cst: &InstantiatedCst, data: &RuntimeData) -> Vec<BoundModel> {
-    data.models
-        .iter()
-        .filter_map(|(id, m)| {
-            let MdlLeftValue::ICst(icst) = &m.left.pattern else {
-                return None;
-            };
-
-            match model_lhs_match_cst(&m.left.time_range, icst, instantiated_cst, data) {
-                PatternMatchResult::True(bindings) => Some(BoundModel {
-                    bindings,
-                    model: m.clone(),
-                }),
-                PatternMatchResult::False => None,
-            }
-        })
-        .collect()
-}
-
-pub fn model_lhs_match_cst(
-    time_range: &TimePatternRange,
-    icst: &ICst,
-    instantiated_cst: &InstantiatedCst,
-    data: &RuntimeData,
-) -> PatternMatchResult {
-    instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new())
-}
-
 pub fn all_causal_models(data: &RuntimeData) -> Vec<Mdl> {
     data.models
         .iter()
