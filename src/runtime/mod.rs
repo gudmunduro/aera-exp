@@ -12,7 +12,7 @@ use crate::types::pattern::{PatternItem, PatternValue};
 pub fn run_aera() {
     let mut runtime_data = RuntimeData::new();
     seed::setup_seed(&mut runtime_data);
-    runtime_data.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(0.0));
+    runtime_data.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(1.0));
     runtime_data.current_state.variables.insert(EntityVariableKey::new("o", "position"), RuntimeValue::Number(5.0));
     runtime_data.current_state.instansiated_csts = compute_instantiated_states(&runtime_data, &runtime_data.current_state);
 

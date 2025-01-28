@@ -21,7 +21,7 @@ pub struct Mdl {
 }
 
 impl Mdl {
-    pub fn binding_params(&self) -> Vec<String> {
+    fn binding_params(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
             MdlLeftValue::ICst(cst) => cst.pattern.clone(),
             MdlLeftValue::Command(cmd) => cmd.params.clone(),
@@ -39,8 +39,46 @@ impl Mdl {
                 PatternItem::Binding(name) => Some(name.clone()),
                 _ => None,
             })
-            // Computed bindings can never be passed as params
-            .filter(|b| !self.forward_computed.contains_key(b) && !self.backward_computed.contains_key(b))
+            .unique()
+            .collect()
+    }
+
+    pub fn forward_binding_params(&self) -> Vec<String> {
+        let left_pattern = match &self.left.pattern {
+            MdlLeftValue::ICst(cst) => cst.pattern.clone(),
+            MdlLeftValue::Command(cmd) => cmd.params.clone(),
+            MdlLeftValue::MkVal(mk_val) => vec![mk_val.value.clone()],
+        };
+        let params_in_computed = self.forward_computed.iter().flat_map(|(_, f)| f.binding_params());
+
+        left_pattern
+            .into_iter()
+            .filter_map(|pattern| match &pattern {
+                PatternItem::Binding(name) => Some(name.clone()),
+                _ => None,
+            })
+            .chain(params_in_computed.into_iter())
+            .filter(|b| !self.forward_computed.contains_key(b))
+            .unique()
+            .collect()
+    }
+
+    pub fn backward_binding_params_(&self) -> Vec<String> {
+        let right_pattern = match &self.right.pattern {
+            MdlRightValue::IMdl(imdl) => imdl.params.clone(),
+            MdlRightValue::MkVal(mk_val) => vec![mk_val.value.clone()],
+            MdlRightValue::Goal(_) => Vec::new(),
+        };
+        let params_in_computed = self.backward_computed.iter().flat_map(|(_, f)| f.binding_params());
+
+        right_pattern
+            .into_iter()
+            .filter_map(|pattern| match &pattern {
+                PatternItem::Binding(name) => Some(name.clone()),
+                _ => None,
+            })
+            .chain(params_in_computed.into_iter())
+            .filter(|b| !self.backward_computed.contains_key(b))
             .unique()
             .collect()
     }
@@ -70,7 +108,7 @@ impl Mdl {
         let imdl = self.right.pattern.as_imdl();
         let bindings = bound_model
             .model
-            .binding_params()
+            .forward_binding_params()
             .iter()
             .zip(&imdl.params)
             .filter_map(|(param, pattern)| match pattern {
@@ -162,9 +200,10 @@ impl IMdl {
         bindings: &HashMap<String, RuntimeValue>,
         data: &RuntimeData,
     ) -> HashMap<String, RuntimeValue> {
+        // TODO: Potentially needs to be fixed so it works with both forward and backward chaining
         let model = data.models.get(&self.model_id).unwrap();
         model
-            .binding_params()
+            .forward_binding_params()
             .iter()
             .zip(&self.params)
             .filter_map(|(binding_name, value)| {

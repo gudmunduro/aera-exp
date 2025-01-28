@@ -8,7 +8,7 @@ pub mod runtime;
 pub mod models;
 pub mod cst;
 pub mod pattern;
-mod functions;
+pub mod functions;
 
 // Time is stored in milliseconds
 type Time = u64;

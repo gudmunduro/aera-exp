@@ -20,7 +20,7 @@ impl PatternItem {
 
     pub fn get_value_with_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<RuntimeValue> {
         match self {
-            PatternItem::Any => panic!("Cannot get value from wildcard pattern"),
+            PatternItem::Any => None,
             PatternItem::Binding(b) => bindings.get(b).cloned(),
             PatternItem::Value(v) => Some(v.clone().into())
         }

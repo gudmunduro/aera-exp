@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
-use crate::types::pattern::PatternItem;
+use crate::types::pattern::{PatternItem, PatternValue};
 use crate::types::runtime::RuntimeData;
 
 pub fn setup_seed(data: &mut RuntimeData) {
@@ -40,7 +41,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 pattern: MdlRightValue::IMdl(IMdl {
                     model_id: "mdl_move".to_string(),
                     params: vec![
-                        PatternItem::Binding("np".to_string()),
+                        PatternItem::Binding("cp".to_string()),
+                        PatternItem::Binding("p".to_string()),
                     ]
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -57,7 +59,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
             model_id: "mdl_move".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), params: vec![
-                    PatternItem::Binding("np".to_string()),
+                    PatternItem::Binding("dp".to_string()),
                 ] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -65,12 +67,13 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: "h".to_string(),
                     var_name: "position".to_string(),
-                    value: PatternItem::Binding("np".to_string())
+                    value: PatternItem::Binding("cp".to_string())
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: [
+                ("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("cp".to_string()))), Box::new(Function::Value(PatternItem::Binding("p".to_string())))))].into(),
+            backward_computed: [].into(),
             confidence: 1.0,
         },
     );
@@ -118,6 +121,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
                     model_id: "mdl_push".to_string(),
                     params: vec![
                         PatternItem::Binding("np".to_string()),
+                        PatternItem::Binding("p".to_string()),
                     ]
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -134,7 +138,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
             model_id: "mdl_push".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), params: vec![
-                    PatternItem::Binding("np".to_string()),
+                    PatternItem::Binding("dp".to_string()),
                 ] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -146,7 +150,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
+            forward_computed: [("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("np".to_string()))), Box::new(Function::Value(PatternItem::Binding("p".to_string())))))].into(),
             backward_computed: HashMap::new(),
             confidence: 1.0,
         },

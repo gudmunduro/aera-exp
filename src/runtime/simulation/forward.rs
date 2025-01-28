@@ -54,6 +54,7 @@ pub fn forward_chain(
                         && backward_chained_model.bindings.contains_key(b)
                 })
                 .collect_vec();
+            // TODO: Do bindings even have to match here?
             let pattern_bindings_match_casual_model = req_model
                 .bindings
                 .iter()
@@ -75,6 +76,7 @@ pub fn forward_chain(
 
                 // Fill in bindings that we got from backward chaining but not forward chaining
                 fwd_chained_model.fill_missing_bindings(&casual_model.bindings);
+                fwd_chained_model.compute_forward_bindings();
 
                 if let Ok(command) = fwd_chained_model
                     .model
