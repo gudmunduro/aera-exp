@@ -4,7 +4,8 @@ mod simulation;
 
 use crate::types::runtime::{RuntimeData, RuntimeValue};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
-use crate::runtime::simulation::{backward_chain, forward_chain};
+use crate::runtime::simulation::backward::backward_chain;
+use crate::runtime::simulation::forward::forward_chain;
 use crate::types::{EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem, PatternValue};
 

@@ -123,7 +123,7 @@ pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> boo
     })
 }
 
-// Goals are considered equal even if timing is not the same
+/// Goals are considered equal even if timing is not the same
 pub fn are_goals_equal(goal1: &Vec<Fact<MkVal>>, goal2: &Vec<Fact<MkVal>>) -> bool {
     goal1.len() == goal2.len()
         && goal1

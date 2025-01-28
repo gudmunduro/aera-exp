@@ -195,4 +195,12 @@ impl BoundModel {
 
         new_state
     }
+
+    /// Add bindings from `bindings` for variables which were not bound before
+    pub fn fill_missing_bindings(&mut self, bindings: &HashMap<String, RuntimeValue>) {
+        self.bindings.extend(bindings.iter()
+            .filter(|(b, _)| !self.bindings.contains_key(*b))
+            .map(|(b, v)| (b.clone(), v.clone()))
+            .collect_vec())
+    }
 }
