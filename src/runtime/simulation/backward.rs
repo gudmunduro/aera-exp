@@ -197,4 +197,6 @@ fn insert_bindings_for_rhs_from_goal(casual_model: &mut BoundModel, goal: &Vec<F
             _ => {}
         }
     }
+
+    casual_model.compute_backward_bindings();
 }

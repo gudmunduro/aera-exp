@@ -2,7 +2,7 @@ mod seed;
 pub mod pattern_matching;
 mod simulation;
 
-use crate::types::runtime::{RuntimeData, RuntimeValue};
+use crate::types::runtime::{RuntimeData, RuntimeValue, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
@@ -40,5 +40,14 @@ pub fn run_aera() {
     println!("Results of forward chaining");
     println!("Goal reachable: {goal_reachable}");
     println!("{fwd_result:#?}");
+
+    advance_time_step(&mut runtime_data);
 }
 
+fn advance_time_step(data: &mut RuntimeData) {
+    let SystemTime::Exact(time) = data.current_state.time else {
+        panic!("System time should always be exact during runtime");
+    };
+    // Increment by 100ms
+    data.current_state.time = SystemTime::Exact(time + 100);
+}

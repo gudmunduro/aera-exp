@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
@@ -44,6 +45,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
             confidence: 1.0,
         },
     );
@@ -66,6 +69,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
             confidence: 1.0,
         },
     );
@@ -117,6 +122,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
             confidence: 1.0,
         },
     );
@@ -139,6 +146,8 @@ pub fn setup_seed(data: &mut RuntimeData) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
             confidence: 1.0,
         },
     );

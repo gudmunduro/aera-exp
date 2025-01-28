@@ -1,10 +1,12 @@
-use std::collections::HashMap;
-use itertools::Itertools;
 use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatchResult};
-use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
 use crate::types::cst::ICst;
+use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
 use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
+use itertools::Itertools;
+use std::collections::HashMap;
+use tap::Tap;
 
 pub type GoalName = String;
 
@@ -14,6 +16,8 @@ pub struct Mdl {
     pub left: Fact<MdlLeftValue>,
     pub right: Fact<MdlRightValue>,
     pub confidence: f64,
+    pub forward_computed: HashMap<String, Function>,
+    pub backward_computed: HashMap<String, Function>,
 }
 
 impl Mdl {
@@ -33,8 +37,10 @@ impl Mdl {
             .into_iter()
             .filter_map(|pattern| match &pattern {
                 PatternItem::Binding(name) => Some(name.clone()),
-                _ => None
+                _ => None,
             })
+            // Computed bindings can never be passed as params
+            .filter(|b| !self.forward_computed.contains_key(b) && !self.backward_computed.contains_key(b))
             .unique()
             .collect()
     }
@@ -43,15 +49,18 @@ impl Mdl {
     pub fn try_instantiate_with_icst(&self, state: &SystemState) -> Option<BoundModel> {
         let icst = match &self.left.pattern {
             MdlLeftValue::ICst(icst) => icst,
-            _ => return None
+            _ => return None,
         };
         let instantiated_cst = state.instansiated_csts.get(&icst.cst_id)?;
 
         match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
-            PatternMatchResult::True(bindings) => Some(BoundModel {
-                bindings,
-                model: self.clone()
-            }),
+            PatternMatchResult::True(bindings) => Some(
+                BoundModel {
+                    bindings,
+                    model: self.clone(),
+                }
+                .tap_mut(|m| m.compute_forward_bindings()),
+            ),
             PatternMatchResult::False => None,
         }
     }
@@ -59,20 +68,25 @@ impl Mdl {
     /// Get a bound version of this model from rhs imdl and an already bound model of the same type as in imdl
     pub fn backward_chain_known_bindings_from_imdl(&self, bound_model: &BoundModel) -> BoundModel {
         let imdl = self.right.pattern.as_imdl();
-        let bindings = bound_model.model.binding_params()
+        let bindings = bound_model
+            .model
+            .binding_params()
             .iter()
             .zip(&imdl.params)
             .filter_map(|(param, pattern)| match pattern {
-                PatternItem::Binding(b) => bound_model.bindings.get(param)
+                PatternItem::Binding(b) => bound_model
+                    .bindings
+                    .get(param)
                     .map(|value| (b.clone(), value.clone())),
-                _ => None
+                _ => None,
             })
             .collect();
 
         BoundModel {
             model: self.clone(),
-            bindings
+            bindings,
         }
+        .tap_mut(|m| m.compute_backward_bindings())
     }
 }
 
@@ -87,21 +101,21 @@ impl MdlLeftValue {
     pub fn as_icst(&self) -> &ICst {
         match self {
             MdlLeftValue::ICst(icst) => icst,
-            _ => panic!("Lhs needs to be icst in model")
+            _ => panic!("Lhs needs to be icst in model"),
         }
     }
 
     pub fn as_command(&self) -> &Command {
         match self {
             MdlLeftValue::Command(cmd) => cmd,
-            _ => panic!("Lhs needs to be a command in model")
+            _ => panic!("Lhs needs to be a command in model"),
         }
     }
 
     pub fn as_mk_val(&self) -> &MkVal {
         match self {
             MdlLeftValue::MkVal(mk_val) => mk_val,
-            _ => panic!("Lhs needs to be mk.val in model")
+            _ => panic!("Lhs needs to be mk.val in model"),
         }
     }
 }
@@ -117,21 +131,21 @@ impl MdlRightValue {
     pub fn as_imdl(&self) -> &IMdl {
         match self {
             MdlRightValue::IMdl(imdl) => imdl,
-            _ => panic!("Rhs needs to be imdl in model")
+            _ => panic!("Rhs needs to be imdl in model"),
         }
     }
 
     pub fn as_mk_val(&self) -> &MkVal {
         match self {
             MdlRightValue::MkVal(mk_val) => mk_val,
-            _ => panic!("Rhs needs to be mk.val in model")
+            _ => panic!("Rhs needs to be mk.val in model"),
         }
     }
 
     pub fn as_goal(&self) -> &str {
         match self {
             MdlRightValue::Goal(goal) => goal,
-            _ => panic!("Rhs needs to be a goal in model")
+            _ => panic!("Rhs needs to be a goal in model"),
         }
     }
 }
@@ -139,29 +153,41 @@ impl MdlRightValue {
 #[derive(Clone, Debug)]
 pub struct IMdl {
     pub model_id: String,
-    pub params: Pattern
+    pub params: Pattern,
 }
 
 impl IMdl {
-    pub fn map_bindings_to_model(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> HashMap<String, RuntimeValue> {
+    pub fn map_bindings_to_model(
+        &self,
+        bindings: &HashMap<String, RuntimeValue>,
+        data: &RuntimeData,
+    ) -> HashMap<String, RuntimeValue> {
         let model = data.models.get(&self.model_id).unwrap();
-        model.binding_params()
+        model
+            .binding_params()
             .iter()
             .zip(&self.params)
-            .filter_map(|(binding_name, value)| value
-                .get_value_with_bindings(bindings)
-                .map(|v| (binding_name.clone(), v)))
+            .filter_map(|(binding_name, value)| {
+                value
+                    .get_value_with_bindings(bindings)
+                    .map(|v| (binding_name.clone(), v))
+            })
             .collect()
     }
 
-    pub fn instantiate(&self, bindings: &HashMap<String, RuntimeValue>, data: &RuntimeData) -> BoundModel {
-        let model = data.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id)).clone();
+    pub fn instantiate(
+        &self,
+        bindings: &HashMap<String, RuntimeValue>,
+        data: &RuntimeData,
+    ) -> BoundModel {
+        let model = data
+            .models
+            .get(&self.model_id)
+            .expect(&format!("Model in imdl does not exist {}", self.model_id))
+            .clone();
         let bindings = self.map_bindings_to_model(bindings, data);
 
-        BoundModel {
-            bindings,
-            model
-        }
+        BoundModel { bindings, model }.tap_mut(|m| m.compute_forward_bindings())
     }
 }
 
@@ -181,16 +207,22 @@ impl BoundModel {
 
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
-    pub fn predict_state_change(&self, state: &SystemState, data: &RuntimeData) -> SystemState {
+    pub fn predict_state_change(&mut self, state: &SystemState, data: &RuntimeData) -> SystemState {
+        self.compute_forward_bindings();
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
             return state.clone();
         };
 
-        let predicted_value = mk_val.value.get_value_with_bindings(&self.bindings)
+        let predicted_value = mk_val
+            .value
+            .get_value_with_bindings(&self.bindings)
             .expect("Binding missing when trying to predict state change");
 
         let mut new_state = state.clone();
-        new_state.variables.insert(EntityVariableKey::new(&mk_val.entity_id, &mk_val.var_name), predicted_value);
+        new_state.variables.insert(
+            EntityVariableKey::new(&mk_val.entity_id, &mk_val.var_name),
+            predicted_value,
+        );
         new_state.instansiated_csts = compute_instantiated_states(data, &new_state);
 
         new_state
@@ -198,9 +230,28 @@ impl BoundModel {
 
     /// Add bindings from `bindings` for variables which were not bound before
     pub fn fill_missing_bindings(&mut self, bindings: &HashMap<String, RuntimeValue>) {
-        self.bindings.extend(bindings.iter()
-            .filter(|(b, _)| !self.bindings.contains_key(*b))
-            .map(|(b, v)| (b.clone(), v.clone()))
-            .collect_vec())
+        self.bindings.extend(
+            bindings
+                .iter()
+                .filter(|(b, _)| !self.bindings.contains_key(*b))
+                .map(|(b, v)| (b.clone(), v.clone()))
+                .collect_vec(),
+        )
+    }
+
+    pub fn compute_forward_bindings(&mut self) {
+        for (binding, function) in &self.model.forward_computed {
+            if let Some(res) = function.evaluate(&self.bindings) {
+                self.bindings.insert(binding.clone(), res);
+            }
+        }
+    }
+
+    pub fn compute_backward_bindings(&mut self) {
+        for (binding, function) in &self.model.backward_computed {
+            if let Some(res) = function.evaluate(&self.bindings) {
+                self.bindings.insert(binding.clone(), res);
+            }
+        }
     }
 }

@@ -8,8 +8,10 @@ pub mod runtime;
 pub mod models;
 pub mod cst;
 pub mod pattern;
+mod functions;
 
-type Time = f64;
+// Time is stored in milliseconds
+type Time = u64;
 
 #[derive(Clone, Debug)]
 pub struct Command {
@@ -90,7 +92,7 @@ impl MkVal {
         let matches_value = match &self.value {
             PatternItem::Any => true,
             PatternItem::Binding(_) => true,
-            PatternItem::Value(value) => mk_val.value == value
+            PatternItem::Value(value) => &mk_val.value == value
         };
         self.entity_id == mk_val.entity_id && self.var_name == mk_val.var_name && matches_value
     }
