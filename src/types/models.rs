@@ -2,7 +2,7 @@ use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatch
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
-use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
+use crate::types::runtime::{System, RuntimeValue, SystemState};
 use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -21,29 +21,7 @@ pub struct Mdl {
 }
 
 impl Mdl {
-    fn binding_params(&self) -> Vec<String> {
-        let left_pattern = match &self.left.pattern {
-            MdlLeftValue::ICst(cst) => cst.pattern.clone(),
-            MdlLeftValue::Command(cmd) => cmd.params.clone(),
-            MdlLeftValue::MkVal(mk_val) => vec![mk_val.value.clone()],
-        };
-        let right_pattern = match &self.right.pattern {
-            MdlRightValue::IMdl(imdl) => imdl.params.clone(),
-            MdlRightValue::MkVal(mk_val) => vec![mk_val.value.clone()],
-            MdlRightValue::Goal(_) => Vec::new(),
-        };
-        vec![left_pattern, right_pattern]
-            .concat()
-            .into_iter()
-            .filter_map(|pattern| match &pattern {
-                PatternItem::Binding(name) => Some(name.clone()),
-                _ => None,
-            })
-            .unique()
-            .collect()
-    }
-
-    pub fn forward_binding_params(&self) -> Vec<String> {
+    pub fn binding_param(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
             MdlLeftValue::ICst(cst) => cst.pattern.clone(),
             MdlLeftValue::Command(cmd) => cmd.params.clone(),
@@ -59,26 +37,6 @@ impl Mdl {
             })
             .chain(params_in_computed.into_iter())
             .filter(|b| !self.forward_computed.contains_key(b))
-            .unique()
-            .collect()
-    }
-
-    pub fn backward_binding_params_(&self) -> Vec<String> {
-        let right_pattern = match &self.right.pattern {
-            MdlRightValue::IMdl(imdl) => imdl.params.clone(),
-            MdlRightValue::MkVal(mk_val) => vec![mk_val.value.clone()],
-            MdlRightValue::Goal(_) => Vec::new(),
-        };
-        let params_in_computed = self.backward_computed.iter().flat_map(|(_, f)| f.binding_params());
-
-        right_pattern
-            .into_iter()
-            .filter_map(|pattern| match &pattern {
-                PatternItem::Binding(name) => Some(name.clone()),
-                _ => None,
-            })
-            .chain(params_in_computed.into_iter())
-            .filter(|b| !self.backward_computed.contains_key(b))
             .unique()
             .collect()
     }
@@ -108,7 +66,7 @@ impl Mdl {
         let imdl = self.right.pattern.as_imdl();
         let bindings = bound_model
             .model
-            .forward_binding_params()
+            .binding_param()
             .iter()
             .zip(&imdl.params)
             .filter_map(|(param, pattern)| match pattern {
@@ -198,12 +156,12 @@ impl IMdl {
     pub fn map_bindings_to_model(
         &self,
         bindings: &HashMap<String, RuntimeValue>,
-        data: &RuntimeData,
+        data: &System,
     ) -> HashMap<String, RuntimeValue> {
         // TODO: Potentially needs to be fixed so it works with both forward and backward chaining
         let model = data.models.get(&self.model_id).unwrap();
         model
-            .forward_binding_params()
+            .binding_param()
             .iter()
             .zip(&self.params)
             .filter_map(|(binding_name, value)| {
@@ -217,7 +175,7 @@ impl IMdl {
     pub fn instantiate(
         &self,
         bindings: &HashMap<String, RuntimeValue>,
-        data: &RuntimeData,
+        data: &System,
     ) -> BoundModel {
         let model = data
             .models
@@ -237,7 +195,7 @@ pub struct BoundModel {
 }
 
 impl BoundModel {
-    pub fn rhs_imdl_matches_bound_model(&self, model: &BoundModel, data: &RuntimeData) -> bool {
+    pub fn rhs_imdl_matches_bound_model(&self, model: &BoundModel, data: &System) -> bool {
         let imdl = self.model.right.pattern.as_imdl();
         let are_bindings_equal = imdl.map_bindings_to_model(&self.bindings, data) == model.bindings;
         let are_models_equal = self.model.model_id == model.model.model_id;
@@ -246,7 +204,7 @@ impl BoundModel {
 
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
-    pub fn predict_state_change(&mut self, state: &SystemState, data: &RuntimeData) -> SystemState {
+    pub fn predict_state_change(&mut self, state: &SystemState, data: &System) -> SystemState {
         self.compute_forward_bindings();
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
             return state.clone();

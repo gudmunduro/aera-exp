@@ -1,7 +1,7 @@
 use crate::types::cst::InstantiatedCst;
 use crate::types::models::{Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{RuntimeData, RuntimeValue, SystemState};
+use crate::types::runtime::{System, RuntimeValue, SystemState};
 use crate::types::{Fact, MkVal};
 use std::collections::HashMap;
 
@@ -11,7 +11,7 @@ pub enum PatternMatchResult {
 }
 
 pub fn compute_instantiated_states(
-    data: &RuntimeData,
+    data: &System,
     state: &SystemState,
 ) -> HashMap<String, InstantiatedCst> {
     data.csts
@@ -23,7 +23,7 @@ pub fn compute_instantiated_states(
         .collect()
 }
 
-pub fn all_causal_models(data: &RuntimeData) -> Vec<Mdl> {
+pub fn all_causal_models(data: &System) -> Vec<Mdl> {
     data.models
         .iter()
         .filter(|(_, m)| match m {
@@ -47,7 +47,7 @@ pub fn all_causal_models(data: &RuntimeData) -> Vec<Mdl> {
         .collect()
 }
 
-pub fn all_req_models(data: &RuntimeData) -> Vec<Mdl> {
+pub fn all_req_models(data: &System) -> Vec<Mdl> {
     data.models
         .iter()
         .filter(|(_, m)| match m {

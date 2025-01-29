@@ -8,3 +8,8 @@ anyhow = "1.0.95"
 itertools = "0.14.0"
 log = "0.4.25"
 tap = "1.0.1"
+prost = "0.13.4"
+simple-log = "2.1.1"
+
+[build-dependencies]
+prost-build = "0.13.4"

@@ -5,9 +5,9 @@ use crate::types::{Fact, MatchesFact, MkVal};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::PatternItem;
-use crate::types::runtime::{RuntimeData, RuntimeValue};
+use crate::types::runtime::{System, RuntimeValue};
 
-pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &RuntimeData) -> Vec<BoundModel> {
+pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<BoundModel> {
     let mut instantiable_cas_mdl = Vec::new();
 
     let req_models = all_req_models(data);
@@ -33,7 +33,7 @@ fn get_goal_requirements_for_goal(
     goal: &Vec<Fact<MkVal>>,
     instantiable_cas_mdl: &Vec<BoundModel>,
     casual_models: &Vec<Mdl>,
-    data: &RuntimeData,
+    data: &System,
     observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
 ) -> Vec<BoundModel> {
     if state_matches_facts(&data.current_state, goal) {
@@ -132,7 +132,7 @@ fn get_goal_requirements_for_goal(
 
 fn create_variations_of_sub_goal(
     goal: &Vec<Fact<MkVal>>,
-    data: &RuntimeData,
+    data: &System,
 ) -> Vec<Vec<Fact<MkVal>>> {
     let goal_cst = Cst {
         cst_id: "".to_string(),

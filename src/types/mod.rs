@@ -16,6 +16,7 @@ type Time = u64;
 #[derive(Clone, Debug)]
 pub struct Command {
     pub name: String,
+    pub entity_id: String,
     pub params: Pattern,
 }
 
@@ -29,6 +30,7 @@ impl Command {
 
         Ok(RuntimeCommand {
             name: self.name.clone(),
+            entity_id: self.entity_id.clone(),
             params,
         })
     }

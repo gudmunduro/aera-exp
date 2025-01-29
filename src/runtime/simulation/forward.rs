@@ -3,21 +3,21 @@ use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
 use crate::types::{Fact, MkVal};
 use crate::types::models::BoundModel;
 use crate::types::pattern::bindings_in_pattern;
-use crate::types::runtime::{RuntimeCommand, RuntimeData, SystemState};
+use crate::types::runtime::{RuntimeCommand, System, SystemState};
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
 pub struct ForwardChainNode {
-    command: RuntimeCommand,
-    children: Vec<ForwardChainNode>,
-    is_in_goal_path: bool,
+    pub command: RuntimeCommand,
+    pub children: Vec<ForwardChainNode>,
+    pub is_in_goal_path: bool,
 }
 
 pub fn forward_chain(
     goal: &Vec<Fact<MkVal>>,
     goal_requirements: &Vec<BoundModel>,
     state: &SystemState,
-    data: &RuntimeData,
+    data: &System,
     observed_states: &mut Vec<SystemState>,
 ) -> (Vec<ForwardChainNode>, bool) {
     if state_matches_facts(state, goal) {
@@ -54,7 +54,6 @@ pub fn forward_chain(
                         && backward_chained_model.bindings.contains_key(b)
                 })
                 .collect_vec();
-            // TODO: Do bindings even have to match here?
             let pattern_bindings_match_casual_model = req_model
                 .bindings
                 .iter()

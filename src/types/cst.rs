@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::runtime::pattern_matching::PatternMatchResult;
 use crate::types::{Fact, MkVal, PatternItem};
 use crate::types::pattern::Pattern;
-use crate::types::runtime::{AssignedMkVal, RuntimeData, RuntimeValue, SystemState};
+use crate::types::runtime::{AssignedMkVal, System, RuntimeValue, SystemState};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cst {
@@ -67,7 +67,7 @@ pub struct ICst {
 
 impl ICst {
     /// "Instantiate" cst using the pattern, so bindings are turned into params (which could be other bindings)
-    pub fn expand_cst(&self, data: &RuntimeData) -> Cst {
+    pub fn expand_cst(&self, data: &System) -> Cst {
         let mut cst = data.csts.get(&self.cst_id).expect(&format!("Invalid cst id {}. Cst was likely deleted but model with icst was not", self.cst_id)).clone();
         let binding_params = cst.binding_params().into_iter().zip(&self.pattern).collect::<HashMap<_, _>>();
         cst.facts = cst.facts

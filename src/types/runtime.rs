@@ -4,15 +4,15 @@ use crate::types::{cst::Cst, models::Mdl, EntityVariableKey, MkVal, Time, TimePa
 use crate::types::cst::InstantiatedCst;
 use crate::types::pattern::{PatternItem, PatternValue};
 
-pub struct RuntimeData {
+pub struct System {
     pub current_state: SystemState,
     pub models: HashMap<String, Mdl>,
     pub csts: HashMap<String, Cst>,
 }
 
-impl RuntimeData {
-    pub fn new() -> RuntimeData {
-        RuntimeData {
+impl System {
+    pub fn new() -> System {
+        System {
             current_state: SystemState {
                 variables: HashMap::new(),
                 instansiated_csts: HashMap::new(),
@@ -190,5 +190,6 @@ impl AssignedMkVal {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeCommand {
     pub name: String,
+    pub entity_id: String,
     pub params: Vec<RuntimeValue>,
 }

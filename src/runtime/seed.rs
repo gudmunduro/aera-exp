@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};
-use crate::types::{Command, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{PatternItem, PatternValue};
-use crate::types::runtime::RuntimeData;
+use crate::types::runtime::{RuntimeValue, System};
 
-pub fn setup_seed(data: &mut RuntimeData) {
-    data.csts.insert(
+pub fn setup_seed(system: &mut System) {
+    system.csts.insert(
         "cst_pos".to_string(),
         Cst {
             cst_id: "cst_pos".to_string(),
@@ -24,7 +24,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
         }
     );
 
-    data.models.insert(
+    system.models.insert(
         "mdl_move_req".to_string(),
         Mdl {
             model_id: "mdl_move_req".to_string(),
@@ -53,12 +53,12 @@ pub fn setup_seed(data: &mut RuntimeData) {
         },
     );
 
-    data.models.insert(
+    system.models.insert(
         "mdl_move".to_string(),
         Mdl {
             model_id: "mdl_move".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), params: vec![
+                pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), entity_id: "h".to_string(), params: vec![
                     PatternItem::Binding("dp".to_string()),
                 ] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -78,7 +78,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
         },
     );
 
-    data.csts.insert(
+    system.csts.insert(
         "cst_obj".to_string(),
         Cst {
             cst_id: "cst_obj".to_string(),
@@ -103,7 +103,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
         }
     );
 
-    data.models.insert(
+    system.models.insert(
         "mdl_push_req".to_string(),
         Mdl {
             model_id: "mdl_push_req".to_string(),
@@ -131,12 +131,12 @@ pub fn setup_seed(data: &mut RuntimeData) {
         },
     );
 
-    data.models.insert(
+    system.models.insert(
         "mdl_push".to_string(),
         Mdl {
             model_id: "mdl_push".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), params: vec![] }),
+                pattern: MdlLeftValue::Command(Command{ name: "push".to_string(), entity_id: "o".to_string(), params: vec![] }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
@@ -152,4 +152,7 @@ pub fn setup_seed(data: &mut RuntimeData) {
             confidence: 1.0,
         },
     );
+
+    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(1.0));
+    system.current_state.variables.insert(EntityVariableKey::new("o", "position"), RuntimeValue::Number(5.0));
 }
