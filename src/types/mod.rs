@@ -16,7 +16,7 @@ type Time = u64;
 #[derive(Clone, Debug)]
 pub struct Command {
     pub name: String,
-    pub entity_id: String,
+    pub entity_id: EntityPatternValue,
     pub params: Pattern,
 }
 
@@ -30,7 +30,7 @@ impl Command {
 
         Ok(RuntimeCommand {
             name: self.name.clone(),
-            entity_id: self.entity_id.clone(),
+            entity_id: self.entity_id.get_id_with_bindings(bindings).unwrap(),
             params,
         })
     }
@@ -71,14 +71,14 @@ impl MatchesFact<MkVal> for Fact<MkVal> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MkVal {
-    pub entity_id: String,
+    pub entity_id: EntityPatternValue,
     pub var_name: String,
     pub value: PatternItem,
 }
 
 impl MkVal {
-    pub fn assign_value(&self, value: &RuntimeValue) -> AssignedMkVal {
-        AssignedMkVal::from_mk_val(self, value)
+    pub fn assign_value(&self, value: &RuntimeValue, entity_bindings: &HashMap<String, RuntimeValue>) -> AssignedMkVal {
+        AssignedMkVal::from_mk_val(self, value, entity_bindings)
     }
 
     /// Checks if two mk.val are equal, assumes bindings are equivalent to wildcard
@@ -96,14 +96,18 @@ impl MkVal {
             PatternItem::Binding(_) => true,
             PatternItem::Value(value) => &mk_val.value == value
         };
-        self.entity_id == mk_val.entity_id && self.var_name == mk_val.var_name && matches_value
+        let matches_entity = match &self.entity_id {
+            EntityPatternValue::Binding(_) => true,
+            EntityPatternValue::EntityId(entity_id) => entity_id == &mk_val.entity_id
+        };
+        matches_entity && self.var_name == mk_val.var_name && matches_value
     }
 
-    pub fn entity_key(&self) -> EntityVariableKey {
-        EntityVariableKey {
-            entity_id: self.entity_id.clone(),
+    pub fn entity_key(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<EntityVariableKey> {
+        Some(EntityVariableKey {
+            entity_id: self.entity_id.get_id_with_bindings(bindings)?,
             var_name: self.var_name.clone(),
-        }
+        })
     }
 }
 
@@ -142,4 +146,34 @@ impl EntityVariableKey {
 pub struct Goal {
     name: String,
     time_range: TimePatternRange,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum EntityPatternValue {
+    Binding(String),
+    EntityId(String),
+}
+
+impl EntityPatternValue {
+    pub fn get_id_with_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<String> {
+        match self {
+            EntityPatternValue::Binding(b) => match bindings.get(b)? {
+                RuntimeValue::EntityId(id) => Some(id.clone()),
+                v => panic!("Binding {b} expected to have type entity, but is {v:?}")
+            }
+            EntityPatternValue::EntityId(id) => Some(id.clone())
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EntityDeclaration {
+    pub binding: String,
+    pub class: String,
+}
+
+impl EntityDeclaration {
+    pub fn new(binding: &str, class: &str) -> EntityDeclaration {
+        EntityDeclaration { binding: binding.to_owned(), class: class.to_owned() }
+    }
 }

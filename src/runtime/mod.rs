@@ -8,12 +8,12 @@ use crate::types::runtime::{System, RuntimeValue, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
-use crate::types::{EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem, PatternValue};
 
 pub fn run_demo() {
     let mut system = System::new();
-    seed::setup_seed(&mut system);
+    seed::setup_simple_seed(&mut system);
     system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
 
     log::debug!("Instantiated composite states");
@@ -24,7 +24,7 @@ pub fn run_demo() {
     let goal = vec![
         Fact {
             pattern: MkVal {
-                entity_id: "o".to_string(),
+                entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "position".to_string(),
                 value: PatternItem::Value(PatternValue::Number(7.0)),
             },
@@ -47,12 +47,12 @@ pub fn run_demo() {
 pub fn run_with_tcp() {
     let mut tcp_interface = TcpInterface::connect().expect("Failed to connect to controller with TCP");
     let mut system = System::new();
-    seed::setup_seed(&mut system);
+    seed::setup_simple_seed(&mut system);
 
     let goal = vec![
         Fact {
             pattern: MkVal {
-                entity_id: "o".to_string(),
+                entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "position".to_string(),
                 value: PatternItem::Value(PatternValue::Number(7.0)),
             },

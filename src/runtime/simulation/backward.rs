@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use itertools::Itertools;
 use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, state_matches_facts};
-use crate::types::{Fact, MatchesFact, MkVal};
+use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::PatternItem;
@@ -29,6 +29,7 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<BoundModel>
     )
 }
 
+/// The recursive part of backward chaining
 fn get_goal_requirements_for_goal(
     goal: &Vec<Fact<MkVal>>,
     instantiable_cas_mdl: &Vec<BoundModel>,
@@ -80,10 +81,13 @@ fn get_goal_requirements_for_goal(
         let rhs_mk_val_value = rhs_mk_val
             .value
             .get_value_with_bindings(&c_goal_model.bindings);
+        let Some(mk_val_entity_key) = rhs_mk_val.entity_key(&c_goal_model.bindings) else {
+            continue;
+        };
         if matches!(
             &rhs_mk_val_value,
             Some(v) if data.current_state.variables
-                .get(&rhs_mk_val.entity_key())
+                .get(&mk_val_entity_key)
                 .map(|val| val == v)
                 .unwrap_or(false))
         {
@@ -137,6 +141,7 @@ fn create_variations_of_sub_goal(
     let goal_cst = Cst {
         cst_id: "".to_string(),
         facts: goal.clone(),
+        entities: Vec::new(),
     };
     let bindings = goal_cst.binding_params();
 
@@ -146,7 +151,7 @@ fn create_variations_of_sub_goal(
         .map(|b| {
             goal.iter()
                 .filter(|f| f.pattern.value.is_binding(b))
-                .filter_map(|f| data.current_state.variables.get(&f.pattern.entity_key()))
+                .filter_map(|f| data.current_state.variables.get(&f.pattern.entity_key(&HashMap::new()).unwrap()))
                 .map(|v| (b.clone(), v.clone()))
                 .collect_vec()
         })
@@ -170,19 +175,27 @@ fn insert_bindings_into_facts(
             }
             _ => {}
         }
+        match &fact.pattern.entity_id {
+            EntityPatternValue::Binding(b) if bindings.contains_key(b) => {
+                fact.pattern.entity_id = EntityPatternValue::EntityId(bindings[b].as_entity_id().to_owned());
+            }
+            _ => {}
+        }
     }
 }
 
 fn insert_bindings_for_rhs_from_goal(casual_model: &mut BoundModel, goal: &Vec<Fact<MkVal>>) {
     let mk_val = casual_model.model.right.pattern.as_mk_val();
+    let goal_fact = goal
+        .iter()
+        .find(|goal_val| {
+            goal_val.pattern.entity_id == mk_val.entity_id
+                && goal_val.pattern.var_name == mk_val.var_name
+        })
+        .unwrap();
+
     if let PatternItem::Binding(binding) = &mk_val.value {
-        let goal_value = goal
-            .iter()
-            .find(|goal_val| {
-                goal_val.pattern.entity_id == mk_val.entity_id
-                    && goal_val.pattern.var_name == mk_val.var_name
-            })
-            .unwrap()
+        let goal_value = goal_fact
             .pattern
             .value
             .clone();
@@ -193,6 +206,18 @@ fn insert_bindings_for_rhs_from_goal(casual_model: &mut BoundModel, goal: &Vec<F
                 casual_model
                     .bindings
                     .insert(binding.to_owned(), value.into());
+            }
+            _ => {}
+        }
+    }
+
+    if let EntityPatternValue::Binding(binding) = &mk_val.entity_id {
+        // Same with entity id
+        match &goal_fact.pattern.entity_id {
+            EntityPatternValue::EntityId(entity_id) => {
+                casual_model
+                    .bindings
+                    .insert(binding.to_owned(), RuntimeValue::EntityId(entity_id.clone()));
             }
             _ => {}
         }

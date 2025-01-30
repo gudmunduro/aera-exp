@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use itertools::Itertools;
 use crate::runtime::pattern_matching::PatternMatchResult;
-use crate::types::{Fact, MkVal, PatternItem};
+use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, PatternItem};
 use crate::types::pattern::Pattern;
 use crate::types::runtime::{AssignedMkVal, System, RuntimeValue, SystemState};
 
@@ -9,33 +9,41 @@ use crate::types::runtime::{AssignedMkVal, System, RuntimeValue, SystemState};
 pub struct Cst {
     pub cst_id: String,
     pub facts: Vec<Fact<MkVal>>,
+    pub entities: Vec<EntityDeclaration>,
 }
 
 impl Cst {
     pub fn new(cst_id: String) -> Cst {
         Cst {
             cst_id,
-            facts: Vec::new()
+            facts: Vec::new(),
+            entities: Vec::new(),
         }
     }
 
-    pub fn matches_system_state(&self, state: &SystemState) -> bool {
-        self.facts
-            .iter()
-            .all(|fact|  match &fact.pattern.value {
-                PatternItem::Binding(_) | PatternItem::Any => state.variables.contains_key(&fact.pattern.entity_key()),
-                PatternItem::Value(value) => state.variables.get(&fact.pattern.entity_key()).map(|v| v == value).unwrap_or(false),
-            })
-    }
+    // TODO: Probably remove function, makes no sense, cst are instantiated and then every icst is compared to those
+    // pub fn matches_system_state(&self, state: &SystemState) -> bool {
+    //     self.facts
+    //         .iter()
+    //         .all(|fact|  match &fact.pattern.value {
+    //             PatternItem::Binding(_) | PatternItem::Any => state.variables.contains_key(&fact.pattern.entity_key()),
+    //             PatternItem::Value(value) => state.variables.get(&fact.pattern.entity_key()).map(|v| v == value).unwrap_or(false),
+    //         })
+    // }
 
     pub fn binding_params(&self) -> Vec<String> {
-        self.facts.iter()
+        let entity_bindings = self.entities
+            .iter()
+            .map(|e| e.binding.clone());
+
+        let fact_bindings = self.facts.iter()
             .filter_map(|fact| match &fact.pattern.value {
                 PatternItem::Binding(name) => Some(name.clone()),
                 _ => None
             })
-            .unique()
-            .collect()
+            .unique();
+
+        entity_bindings.chain(fact_bindings).collect()
     }
 
     pub fn fill_in_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Cst {
@@ -50,12 +58,31 @@ impl Cst {
                 }
                 _ => {}
             }
+            match &fact.pattern.entity_id {
+                EntityPatternValue::Binding(b) => {
+                    if let Some(binding_val) = bindings.get(b) {
+                        fact.pattern.entity_id = EntityPatternValue::EntityId(binding_val.as_entity_id().to_owned());
+                    }
+                }
+                _ => {}
+            }
         }
+
 
         Cst {
             cst_id: self.cst_id.clone(),
             facts,
+            entities: self.entities.clone(),
         }
+    }
+
+    pub fn all_possible_entity_bindings(&self, system: &System) -> Vec<HashMap<String, RuntimeValue>> {
+        self.entities.iter()
+            .filter_map(|decl| system.entities_in_classes.get(&decl.class).map(|e| (&decl.binding, e)))
+            .map(|(binding, entities)| entities.iter().map(|e| (binding.clone(), RuntimeValue::EntityId(e.clone()))).collect_vec())
+            .multi_cartesian_product()
+            .map(|mappings| mappings.into_iter().collect())
+            .collect()
     }
 }
 
@@ -103,39 +130,53 @@ pub struct InstantiatedCst {
 }
 
 impl InstantiatedCst {
-    pub fn can_instantiate_state(cst: &Cst, state: &SystemState) -> bool {
-        Self::try_instantiate_from_current_state(cst, state).is_some()
+    pub fn can_instantiate_state(cst: &Cst, state: &SystemState, system: &System) -> bool {
+        !Self::try_instantiate_from_current_state(cst, state, system).is_empty()
     }
 
-    pub fn try_instantiate_from_current_state(cst: &Cst, state: &SystemState) -> Option<InstantiatedCst> {
-        let facts: Option<Vec<Fact<AssignedMkVal>>> = cst.facts
-            .iter()
-            .map(|f| Some(f.with_pattern(f.pattern.assign_value(state.variables.get(&f.pattern.entity_key())?))))
-            .collect();
-        let facts = facts?;
+    pub fn try_instantiate_from_current_state(cst: &Cst, state: &SystemState, system: &System) -> Vec<InstantiatedCst> {
+        // TODO: Create entity bindings based on cst (entities will be defined inside the cst)
+        // TODO: Now multiple instances of cst can be instantiated if multiple entities of class match it
 
-        // Make sure that variables with same bindings have same value
-        let binding_params = cst.binding_params();
-        let are_bindings_correct = binding_params.iter()
-            .all(|b| facts.iter()
-                .filter(|f| matches!(&f.pattern.pattern_value, PatternItem::Binding(fb) if b == fb))
-                .map(|f| &f.pattern.value).all_equal());
+        let mut instantiated_csts: Vec<InstantiatedCst> = Vec::new();
 
-        if !are_bindings_correct {
-            return None;
+        for entity_bindings in cst.all_possible_entity_bindings(system) {
+            let facts: Option<Vec<Fact<AssignedMkVal>>> = cst.facts
+                .iter()
+                .map(|f| Some(f.with_pattern(f.pattern.assign_value(state.variables.get(&f.pattern.entity_key(&entity_bindings)?)?, &entity_bindings))))
+                .collect();
+
+            let Some(facts) = facts else {
+                continue;
+            };
+
+            // Make sure that variables with same bindings have same value
+            let binding_params = cst.binding_params();
+            let are_bindings_correct = binding_params.iter()
+                .all(|b| facts.iter()
+                    .filter(|f| matches!(&f.pattern.pattern_value, PatternItem::Binding(fb) if b == fb))
+                    .map(|f| &f.pattern.value).all_equal());
+
+            if !are_bindings_correct {
+                continue;
+            }
+
+            instantiated_csts.push(InstantiatedCst {
+                cst_id: cst.cst_id.clone(),
+                facts,
+                binding_params
+            });
         }
 
-        Some(InstantiatedCst {
-            cst_id: cst.cst_id.clone(),
-            facts,
-            binding_params
-        })
+        instantiated_csts
     }
 
     pub fn matches_param_pattern(&self, pattern: &Pattern, assigned_bindings: &HashMap<String, RuntimeValue>) -> PatternMatchResult {
         if pattern.len() != self.binding_params.len() {
             return PatternMatchResult::False;
         }
+
+        // TODO: Get entity bindings using this
 
         let mut returned_binding_values = assigned_bindings.clone();
         let mut binding_values = HashMap::new();

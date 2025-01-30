@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
-use crate::types::{cst::Cst, models::Mdl, EntityVariableKey, MkVal, Time, TimePatternRange, TimePatternValue};
+use crate::types::{cst::Cst, models::Mdl, EntityPatternValue, EntityVariableKey, MkVal, Time, TimePatternRange, TimePatternValue};
 use crate::types::cst::InstantiatedCst;
 use crate::types::pattern::{PatternItem, PatternValue};
 
@@ -8,6 +8,7 @@ pub struct System {
     pub current_state: SystemState,
     pub models: HashMap<String, Mdl>,
     pub csts: HashMap<String, Cst>,
+    pub entities_in_classes: HashMap<String, Vec<String>>,
 }
 
 impl System {
@@ -20,7 +21,20 @@ impl System {
             },
             models: HashMap::new(),
             csts: HashMap::new(),
+            entities_in_classes: HashMap::new(),
         }
+    }
+
+    pub fn create_entity(&mut self, entity_id: &str, class: &str) {
+        let class = match self.entities_in_classes.get_mut(class) {
+            None => {
+                self.entities_in_classes.insert(class.to_string(), Vec::new());
+                self.entities_in_classes.get_mut(class).unwrap()
+            }
+            Some(c) => c
+        };
+
+        class.push(entity_id.to_owned());
     }
 }
 
@@ -82,7 +96,8 @@ impl SystemTime {
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuntimeValue {
     Number(f64),
-    String(String)
+    String(String),
+    EntityId(String),
 }
 
 impl RuntimeValue {
@@ -90,6 +105,12 @@ impl RuntimeValue {
         match &self {
             RuntimeValue::Number(v) => *v,
             _ => panic!("Value excepted to be a number")
+        }
+    }
+    pub fn as_entity_id(&self) -> &str {
+        match &self {
+            RuntimeValue::EntityId(id) => id,
+            _ => panic!("Value excepted to be an entity id")
         }
     }
 }
@@ -120,6 +141,7 @@ impl From<PatternValue> for RuntimeValue {
         match value {
             PatternValue::Number(n) => RuntimeValue::Number(n),
             PatternValue::String(s) => RuntimeValue::String(s),
+            PatternValue::EntityId(id) => RuntimeValue::EntityId(id),
         }
     }
 }
@@ -177,9 +199,9 @@ pub struct AssignedMkVal {
 }
 
 impl AssignedMkVal {
-    pub fn from_mk_val(mk_val: &MkVal, value: &RuntimeValue) -> AssignedMkVal {
+    pub fn from_mk_val(mk_val: &MkVal, value: &RuntimeValue, entity_bindings: &HashMap<String, RuntimeValue>) -> AssignedMkVal {
         AssignedMkVal {
-            entity_id: mk_val.entity_id.clone(),
+            entity_id: mk_val.entity_id.get_id_with_bindings(entity_bindings).unwrap(),
             var_name: mk_val.var_name.clone(),
             pattern_value: mk_val.value.clone(),
             value: value.clone(),

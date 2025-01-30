@@ -11,13 +11,14 @@ pub enum PatternMatchResult {
 }
 
 pub fn compute_instantiated_states(
-    data: &System,
+    system: &System,
     state: &SystemState,
 ) -> HashMap<String, InstantiatedCst> {
-    data.csts
+    system.csts
         .iter()
-        .filter_map(|(id, cst)| {
-            InstantiatedCst::try_instantiate_from_current_state(cst, state)
+        .flat_map(|(id, cst)| {
+            InstantiatedCst::try_instantiate_from_current_state(cst, state, system)
+                .into_iter()
                 .map(|cst| (id.clone(), cst))
         })
         .collect()
@@ -85,11 +86,13 @@ pub fn bind_values_to_pattern(
         .collect()
 }
 
+/// This function expects entity id bindings to be filled in
+/// TODO: Make sure that is always the case in the goal, both if backward and forward chaining
 pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> bool {
     facts.iter().all(|f| {
         state
             .variables
-            .get(&f.pattern.entity_key())
+            .get(&f.pattern.entity_key(&HashMap::new()).unwrap())
             .map(|v| *v == f.pattern.value)
             .unwrap_or(false)
     })

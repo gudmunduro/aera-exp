@@ -135,6 +135,7 @@ fn values_to_le_bytes(numbers: &[RuntimeValue]) -> Vec<u8> {
     numbers.into_iter().flat_map(|v| match v {
         RuntimeValue::Number(v) => v.to_le_bytes().to_vec(),
         RuntimeValue::String(v) => v.as_bytes().to_vec(),
+        RuntimeValue::EntityId(_) => panic!("Converting entity id to bytes is not supported")
     }).collect()
 }
 

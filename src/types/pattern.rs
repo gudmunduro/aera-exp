@@ -35,6 +35,7 @@ impl PatternItem {
 pub enum PatternValue {
     String(String),
     Number(f64),
+    EntityId(String),
 }
 
 impl From<RuntimeValue> for PatternValue {
@@ -42,6 +43,7 @@ impl From<RuntimeValue> for PatternValue {
         match value {
             RuntimeValue::Number(n) => PatternValue::Number(n),
             RuntimeValue::String(s) => PatternValue::String(s),
+            RuntimeValue::EntityId(id) => PatternValue::EntityId(id),
         }
     }
 }

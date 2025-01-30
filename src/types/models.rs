@@ -3,7 +3,7 @@ use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
 use crate::types::runtime::{System, RuntimeValue, SystemState};
-use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
+use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
 use tap::Tap;
@@ -24,8 +24,24 @@ impl Mdl {
     pub fn binding_param(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
             MdlLeftValue::ICst(cst) => cst.pattern.clone(),
-            MdlLeftValue::Command(cmd) => cmd.params.clone(),
-            MdlLeftValue::MkVal(mk_val) => vec![mk_val.value.clone()],
+            MdlLeftValue::Command(cmd) => {
+                if let EntityPatternValue::Binding(b) = &cmd.entity_id {
+                    // Make PatternItem binding for the entity id binding as well so it appears first in params
+                    vec![PatternItem::Binding(b.clone())].into_iter().chain(cmd.params.clone()).collect_vec()
+                }
+                else {
+                    cmd.params.clone()
+                }
+            },
+            MdlLeftValue::MkVal(mk_val) => {
+                if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
+                    // Make PatternItem binding for the entity id binding as well so it appears first in params
+                    vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
+                }
+                else {
+                    vec![mk_val.value.clone()]
+                }
+            },
         };
         let params_in_computed = self.forward_computed.iter().flat_map(|(_, f)| f.binding_params());
 
@@ -217,7 +233,7 @@ impl BoundModel {
 
         let mut new_state = state.clone();
         new_state.variables.insert(
-            EntityVariableKey::new(&mk_val.entity_id, &mk_val.var_name),
+            EntityVariableKey::new(&mk_val.entity_id.get_id_with_bindings(&self.bindings).expect("Entity binding missing when performing state change"), &mk_val.var_name),
             predicted_value,
         );
         new_state.instansiated_csts = compute_instantiated_states(data, &new_state);
