@@ -26,7 +26,7 @@ pub fn run_demo() {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "pos".to_string(),
-                value: PatternItem::Value(PatternValue::Number(7.0)),
+                value: PatternItem::Value(PatternValue::List(vec![PatternValue::Number(5.0), PatternValue::Number(7.0)])),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },
