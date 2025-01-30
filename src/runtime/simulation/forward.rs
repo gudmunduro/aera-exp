@@ -1,9 +1,9 @@
-use itertools::Itertools;
 use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
-use crate::types::{Fact, MkVal};
 use crate::types::models::BoundModel;
 use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
+use crate::types::{Fact, MkVal};
+use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -32,6 +32,8 @@ pub fn forward_chain(
         .filter_map(|m| m.try_instantiate_with_icst(&state))
         .collect_vec();
 
+    // Casual goal models with all bindings filled in form both forward and backward chaining
+    let mut final_casual_models = Vec::new();
     for req_model in &insatiable_req_models {
         for casual_model in goal_requirements
             .iter()
@@ -77,35 +79,52 @@ pub fn forward_chain(
                 fwd_chained_model.fill_missing_bindings(&casual_model.bindings);
                 fwd_chained_model.compute_forward_bindings();
 
-                if let Ok(command) = fwd_chained_model
-                    .model
-                    .left
-                    .pattern
-                    .as_command()
-                    .to_runtime_command(&fwd_chained_model.bindings)
-                {
-                    let next_state = fwd_chained_model.predict_state_change(&state, data);
-                    // Don't look at next state if prediction changes nothing or if we have already seen this state
-                    if state == &next_state || observed_states.contains(&next_state) {
-                        continue;
-                    }
-                    observed_states.push(next_state.clone());
-
-                    let (children, is_goal_path) =
-                        forward_chain(goal, goal_requirements, &next_state, data, observed_states);
-                    if is_goal_path {
-                        is_in_goal_path = true;
-
-                        let node = ForwardChainNode {
-                            command,
-                            children,
-                            is_in_goal_path: is_goal_path,
-                        };
-                        results.push(node);
-                    }
-                };
+                final_casual_models.push(fwd_chained_model);
+                // TODO: Probably needs to split here (i.e. forward chained model becomes new casual model),
+                // TODO: so predict_next_state can look at all casual models (and therefore their effects)
             }
         }
+    }
+
+    for casual_model in &final_casual_models {
+        if let Ok(command) = casual_model
+            .model
+            .left
+            .pattern
+            .as_command()
+            .to_runtime_command(&casual_model.bindings)
+        {
+            let other_casual_models = final_casual_models
+                .iter()
+                .filter(|m| {
+                    !(m.model.model_id == casual_model.model.model_id
+                        && m.bindings == casual_model.bindings)
+                })
+                .collect();
+            let next_state = casual_model.predict_state_change(
+                &state,
+                &other_casual_models,
+                data,
+            );
+            // Don't look at next state if prediction changes nothing or if we have already seen this state
+            if state == &next_state || observed_states.contains(&next_state) {
+                continue;
+            }
+            observed_states.push(next_state.clone());
+
+            let (children, is_goal_path) =
+                forward_chain(goal, goal_requirements, &next_state, data, observed_states);
+            if is_goal_path {
+                is_in_goal_path = true;
+
+                let node = ForwardChainNode {
+                    command,
+                    children,
+                    is_in_goal_path: is_goal_path,
+                };
+                results.push(node);
+            }
+        };
     }
 
     (results, is_in_goal_path)

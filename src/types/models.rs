@@ -2,10 +2,11 @@ use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatch
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
-use crate::types::runtime::{System, RuntimeValue, SystemState};
+use crate::types::runtime::{RuntimeValue, System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
+use simple_log::new;
 use tap::Tap;
 
 pub type GoalName = String;
@@ -27,23 +28,27 @@ impl Mdl {
             MdlLeftValue::Command(cmd) => {
                 if let EntityPatternValue::Binding(b) = &cmd.entity_id {
                     // Make PatternItem binding for the entity id binding as well so it appears first in params
-                    vec![PatternItem::Binding(b.clone())].into_iter().chain(cmd.params.clone()).collect_vec()
-                }
-                else {
+                    vec![PatternItem::Binding(b.clone())]
+                        .into_iter()
+                        .chain(cmd.params.clone())
+                        .collect_vec()
+                } else {
                     cmd.params.clone()
                 }
-            },
+            }
             MdlLeftValue::MkVal(mk_val) => {
                 if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
                     // Make PatternItem binding for the entity id binding as well so it appears first in params
                     vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
-                }
-                else {
+                } else {
                     vec![mk_val.value.clone()]
                 }
-            },
+            }
         };
-        let params_in_computed = self.forward_computed.iter().flat_map(|(_, f)| f.binding_params());
+        let params_in_computed = self
+            .forward_computed
+            .iter()
+            .flat_map(|(_, f)| f.binding_params());
 
         left_pattern
             .into_iter()
@@ -65,13 +70,15 @@ impl Mdl {
         };
         for instantiated_cst in state.instansiated_csts.get(&icst.cst_id)? {
             match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
-                PatternMatchResult::True(bindings) => return Some(
-                    BoundModel {
-                        bindings,
-                        model: self.clone(),
-                    }
+                PatternMatchResult::True(bindings) => {
+                    return Some(
+                        BoundModel {
+                            bindings,
+                            model: self.clone(),
+                        }
                         .tap_mut(|m| m.compute_forward_bindings()),
-                ),
+                    )
+                }
                 PatternMatchResult::False => continue,
             }
         }
@@ -223,11 +230,49 @@ impl BoundModel {
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
     /// At the moment this does not take into account changes that other models predict will take place when the same action is taken
-    pub fn predict_state_change(&mut self, state: &SystemState, data: &System) -> SystemState {
-        self.compute_forward_bindings();
+    pub fn predict_state_change(
+        &self,
+        state: &SystemState,
+        other_casual_models: &Vec<&BoundModel>,
+        system: &System,
+    ) -> SystemState {
+        let MdlLeftValue::Command(cmd) = &self.model.left.pattern else {
+            return state.clone();
+        };
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
             return state.clone();
         };
+        let Ok(runtime_cmd) = cmd.to_runtime_command(&self.bindings) else {
+            log::error!(
+                "Cannot get runtime command when tyring to predict state change in {}",
+                self.model.model_id
+            );
+            return state.clone();
+        };
+        // Find all other models that predict a state change based on the exact same command, and use those predictions as well
+        let other_predicted_changes = other_casual_models
+            .iter()
+            .filter_map(|m| {
+                match m
+                    .model
+                    .left
+                    .pattern
+                    .as_command()
+                    .to_runtime_command(&m.bindings)
+                {
+                    Ok(cmd) if runtime_cmd == cmd => Some(m),
+                    _ => None,
+                }
+            })
+            .filter_map(|m| {
+                let mk_val = m.model.right.pattern.as_mk_val();
+                let entity_id = mk_val.entity_id.get_id_with_bindings(&m.bindings)?;
+                let value = mk_val
+                    .value
+                    .get_value_with_bindings(&m.bindings)?;
+                Some((EntityVariableKey { entity_id, var_name: mk_val.var_name.to_owned() }, value))
+            })
+            .collect_vec();
 
         let predicted_value = mk_val
             .value
@@ -235,11 +280,18 @@ impl BoundModel {
             .expect("Binding missing when trying to predict state change");
 
         let mut new_state = state.clone();
+        new_state.variables.extend(other_predicted_changes);
         new_state.variables.insert(
-            EntityVariableKey::new(&mk_val.entity_id.get_id_with_bindings(&self.bindings).expect("Entity binding missing when performing state change"), &mk_val.var_name),
+            EntityVariableKey::new(
+                &mk_val
+                    .entity_id
+                    .get_id_with_bindings(&self.bindings)
+                    .expect("Entity binding missing when performing state change"),
+                &mk_val.var_name,
+            ),
             predicted_value,
         );
-        new_state.instansiated_csts = compute_instantiated_states(data, &new_state);
+        new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
 
         new_state
     }

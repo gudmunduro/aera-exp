@@ -25,7 +25,7 @@ pub fn run_demo() {
         Fact {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
-                var_name: "position".to_string(),
+                var_name: "pos".to_string(),
                 value: PatternItem::Value(PatternValue::Number(7.0)),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)

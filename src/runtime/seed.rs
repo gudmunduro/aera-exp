@@ -8,7 +8,6 @@ use crate::types::runtime::{RuntimeValue, System};
 
 pub fn setup_bindings_seed(system: &mut System) {
     system.create_entity("h", "hand");
-    system.create_entity("h2", "hand");
     system.create_entity("o", "object");
 
     system.csts.insert(
@@ -19,11 +18,19 @@ pub fn setup_bindings_seed(system: &mut System) {
                 Fact {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("hb".to_string()),
-                        var_name: "position".to_string(),
-                        value: PatternItem::Binding("p".to_string()),
+                        var_name: "pos_x".to_string(),
+                        value: PatternItem::Binding("px".to_string()),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                }
+                },
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("hb".to_string()),
+                        var_name: "pos_y".to_string(),
+                        value: PatternItem::Binding("py".to_string()),
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
             ],
             entities: vec![
                 EntityDeclaration::new("hb", "hand")
@@ -32,26 +39,27 @@ pub fn setup_bindings_seed(system: &mut System) {
     );
 
     system.models.insert(
-        "mdl_move_req".to_string(),
+        "mdl_move_x_req".to_string(),
         Mdl {
-            model_id: "mdl_move_req".to_string(),
+            model_id: "mdl_move_x_req".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_pos".to_string(),
                     pattern: vec![
                         PatternItem::Binding("hb".to_string()),
-                        PatternItem::Binding("p".to_string()),
+                        PatternItem::Binding("px".to_string()),
+                        PatternItem::Binding("py".to_string()),
                     ],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
                 pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_move".to_string(),
+                    model_id: "mdl_move_x".to_string(),
                     params: vec![
                         PatternItem::Binding("hb".to_string()),
                         PatternItem::Binding("cp".to_string()),
-                        PatternItem::Binding("p".to_string()),
+                        PatternItem::Binding("px".to_string()),
                     ]
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -63,9 +71,9 @@ pub fn setup_bindings_seed(system: &mut System) {
     );
 
     system.models.insert(
-        "mdl_move".to_string(),
+        "mdl_move_x".to_string(),
         Mdl {
-            model_id: "mdl_move".to_string(),
+            model_id: "mdl_move_x".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), entity_id: EntityPatternValue::Binding("hb".to_string()), params: vec![
                     PatternItem::Binding("dp".to_string()),
@@ -75,13 +83,70 @@ pub fn setup_bindings_seed(system: &mut System) {
             right: Fact {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("hb".to_string()),
-                    var_name: "position".to_string(),
+                    var_name: "pos_x".to_string(),
                     value: PatternItem::Binding("cp".to_string())
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: [
-                ("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("cp".to_string()))), Box::new(Function::Value(PatternItem::Binding("p".to_string())))))].into(),
+                ("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("cp".to_string()))), Box::new(Function::Value(PatternItem::Binding("px".to_string())))))].into(),
+            backward_computed: [].into(),
+            confidence: 1.0,
+        },
+    );
+
+    system.models.insert(
+        "mdl_move_y_req".to_string(),
+        Mdl {
+            model_id: "mdl_move_y_req".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::ICst(ICst {
+                    cst_id: "cst_pos".to_string(),
+                    pattern: vec![
+                        PatternItem::Binding("hb".to_string()),
+                        PatternItem::Binding("px".to_string()),
+                        PatternItem::Binding("py".to_string()),
+                    ],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::IMdl(IMdl {
+                    model_id: "mdl_move_y".to_string(),
+                    params: vec![
+                        PatternItem::Binding("hb".to_string()),
+                        PatternItem::Binding("cp".to_string()),
+                        PatternItem::Binding("py".to_string()),
+                    ]
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
+            confidence: 1.0,
+        },
+    );
+
+    system.models.insert(
+        "mdl_move_y".to_string(),
+        Mdl {
+            model_id: "mdl_move_y".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::Command(Command{ name: "move".to_string(), entity_id: EntityPatternValue::Binding("hb".to_string()), params: vec![
+                    PatternItem::Binding("dp".to_string()),
+                ] }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::MkVal(MkVal {
+                    entity_id: EntityPatternValue::Binding("hb".to_string()),
+                    var_name: "pos_y".to_string(),
+                    value: PatternItem::Binding("cp".to_string())
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: [
+                ("dp".to_string(), Function::Sub(Box::new(Function::Value(PatternItem::Binding("cp".to_string()))), Box::new(Function::Value(PatternItem::Binding("py".to_string())))))].into(),
             backward_computed: [].into(),
             confidence: 1.0,
         },
@@ -95,7 +160,15 @@ pub fn setup_bindings_seed(system: &mut System) {
                 Fact {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("hb".to_string()),
-                        var_name: "position".to_string(),
+                        var_name: "pos_x".to_string(),
+                        value: PatternItem::Binding("p".to_string()),
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("hb".to_string()),
+                        var_name: "pos_y".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -103,11 +176,11 @@ pub fn setup_bindings_seed(system: &mut System) {
                 Fact {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::EntityId("o".to_string()),
-                        var_name: "position".to_string(),
+                        var_name: "pos".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                }
+                },
             ],
             entities: vec![
                 EntityDeclaration::new("hb", "hand")
@@ -155,7 +228,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             right: Fact {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("o".to_string()),
-                    var_name: "position".to_string(),
+                    var_name: "pos".to_string(),
                     value: PatternItem::Binding("np".to_string())
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -166,9 +239,9 @@ pub fn setup_bindings_seed(system: &mut System) {
         },
     );
 
-    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(1.0));
-    system.current_state.variables.insert(EntityVariableKey::new("h2", "position"), RuntimeValue::Number(0.0));
-    system.current_state.variables.insert(EntityVariableKey::new("o", "position"), RuntimeValue::Number(5.0));
+    system.current_state.variables.insert(EntityVariableKey::new("h", "pos_x"), RuntimeValue::Number(1.0));
+    system.current_state.variables.insert(EntityVariableKey::new("h", "pos_y"), RuntimeValue::Number(1.0));
+    system.current_state.variables.insert(EntityVariableKey::new("o", "pos"), RuntimeValue::Number(5.0));
 }
 
 pub fn setup_simple_seed(system: &mut System) {
