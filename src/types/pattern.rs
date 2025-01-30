@@ -35,6 +35,7 @@ impl PatternItem {
 pub enum PatternValue {
     String(String),
     Number(f64),
+    List(Vec<PatternValue>),
     EntityId(String),
 }
 
@@ -43,6 +44,7 @@ impl From<RuntimeValue> for PatternValue {
         match value {
             RuntimeValue::Number(n) => PatternValue::Number(n),
             RuntimeValue::String(s) => PatternValue::String(s),
+            RuntimeValue::List(l) => PatternValue::List(l.into_iter().map(|e| PatternValue::from(e)).collect()),
             RuntimeValue::EntityId(id) => PatternValue::EntityId(id),
         }
     }

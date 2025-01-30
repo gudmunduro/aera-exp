@@ -10,6 +10,7 @@ pub enum Function {
     Sub(Box<Function>, Box<Function>),
     Mul(Box<Function>, Box<Function>),
     Div(Box<Function>, Box<Function>),
+    List(Vec<Function>),
 }
 
 impl Function {
@@ -20,6 +21,9 @@ impl Function {
             Function::Sub(v1, v2) => Some(v1.evaluate(bindings)? - v2.evaluate(bindings)?),
             Function::Mul(v1, v2) => Some(v1.evaluate(bindings)? * v2.evaluate(bindings)?),
             Function::Div(v1, v2) => Some(v1.evaluate(bindings)? / v2.evaluate(bindings)?),
+            Function::List(items) => Some(RuntimeValue::List(
+                items.iter().filter_map(|f| f.evaluate(bindings)).collect(),
+            )),
         }
     }
 
@@ -30,14 +34,13 @@ impl Function {
             Function::Add(v1, v2)
             | Function::Sub(v1, v2)
             | Function::Mul(v1, v2)
-            | Function::Div(v1, v2) => {
-                v1
-                    .binding_params()
-                    .into_iter()
-                    .chain(v2.binding_params())
-                    .unique()
-                    .collect()
-            }
+            | Function::Div(v1, v2) => v1
+                .binding_params()
+                .into_iter()
+                .chain(v2.binding_params())
+                .unique()
+                .collect(),
+            Function::List(l) => l.iter().flat_map(|f| f.binding_params()).collect(),
         }
     }
 }
