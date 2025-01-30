@@ -8,6 +8,7 @@ use crate::types::runtime::{RuntimeValue, System};
 
 pub fn setup_bindings_seed(system: &mut System) {
     system.create_entity("h", "hand");
+    system.create_entity("h2", "hand");
     system.create_entity("o", "object");
 
     system.csts.insert(
@@ -93,7 +94,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             facts: vec![
                 Fact {
                     pattern: MkVal {
-                        entity_id: EntityPatternValue::EntityId("h".to_string()),
+                        entity_id: EntityPatternValue::Binding("hb".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                     },
@@ -108,7 +109,9 @@ pub fn setup_bindings_seed(system: &mut System) {
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 }
             ],
-            entities: Vec::new(),
+            entities: vec![
+                EntityDeclaration::new("hb", "hand")
+            ],
         }
     );
 
@@ -120,6 +123,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_obj".to_string(),
                     pattern: vec![
+                        PatternItem::Binding("hb".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
                 }),
@@ -163,6 +167,7 @@ pub fn setup_bindings_seed(system: &mut System) {
     );
 
     system.current_state.variables.insert(EntityVariableKey::new("h", "position"), RuntimeValue::Number(1.0));
+    system.current_state.variables.insert(EntityVariableKey::new("h2", "position"), RuntimeValue::Number(0.0));
     system.current_state.variables.insert(EntityVariableKey::new("o", "position"), RuntimeValue::Number(5.0));
 }
 

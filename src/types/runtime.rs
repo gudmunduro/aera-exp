@@ -41,7 +41,7 @@ impl System {
 #[derive(Clone, Debug)]
 pub struct SystemState {
     pub variables: HashMap<EntityVariableKey, RuntimeValue>,
-    pub instansiated_csts: HashMap<String, InstantiatedCst>,
+    pub instansiated_csts: HashMap<String, Vec<InstantiatedCst>>,
     pub time: SystemTime,
 }
 

@@ -57,14 +57,12 @@ impl<T: Clone> Fact<T> {
 
 impl MatchesFact<AssignedMkVal> for Fact<MkVal> {
     fn matches_fact(&self, fact: &Fact<AssignedMkVal>) -> bool {
-        // TODO: Handle time
         self.pattern.matches_assigned_mk_val(&fact.pattern)
     }
 }
 
 impl MatchesFact<MkVal> for Fact<MkVal> {
     fn matches_fact(&self, fact: &Fact<MkVal>) -> bool {
-        // TODO: Handle time
         self.pattern.matches_mk_val(&fact.pattern)
     }
 }
@@ -87,7 +85,11 @@ impl MkVal {
             (PatternItem::Any | PatternItem::Binding(_), _) | (_, PatternItem::Any | PatternItem::Binding(_)) => true,
             (PatternItem::Value(v1), PatternItem::Value(v2)) => v1 == v2
         };
-        self.entity_id == mk_val.entity_id && self.var_name == mk_val.var_name && matches_value
+        let matches_entity = match (&self.entity_id, &mk_val.entity_id) {
+            (EntityPatternValue::Binding(_), _) | (_, EntityPatternValue::Binding(_)) => true,
+            (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => e1 == e2
+        };
+        matches_entity && self.var_name == mk_val.var_name && matches_value
     }
 
     pub fn matches_assigned_mk_val(&self, mk_val: &AssignedMkVal) -> bool {
@@ -163,6 +165,10 @@ impl EntityPatternValue {
             }
             EntityPatternValue::EntityId(id) => Some(id.clone())
         }
+    }
+
+    pub fn is_binding(&self, binding: &str) -> bool {
+        matches!(self, EntityPatternValue::Binding(b) if b == binding)
     }
 }
 

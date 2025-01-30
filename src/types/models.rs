@@ -63,18 +63,20 @@ impl Mdl {
             MdlLeftValue::ICst(icst) => icst,
             _ => return None,
         };
-        let instantiated_cst = state.instansiated_csts.get(&icst.cst_id)?;
-
-        match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
-            PatternMatchResult::True(bindings) => Some(
-                BoundModel {
-                    bindings,
-                    model: self.clone(),
-                }
-                .tap_mut(|m| m.compute_forward_bindings()),
-            ),
-            PatternMatchResult::False => None,
+        for instantiated_cst in state.instansiated_csts.get(&icst.cst_id)? {
+            match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
+                PatternMatchResult::True(bindings) => return Some(
+                    BoundModel {
+                        bindings,
+                        model: self.clone(),
+                    }
+                        .tap_mut(|m| m.compute_forward_bindings()),
+                ),
+                PatternMatchResult::False => continue,
+            }
         }
+
+        None
     }
 
     /// Get a bound version of this model from rhs imdl and an already bound model of the same type as in imdl
@@ -220,6 +222,7 @@ impl BoundModel {
 
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
+    /// At the moment this does not take into account changes that other models predict will take place when the same action is taken
     pub fn predict_state_change(&mut self, state: &SystemState, data: &System) -> SystemState {
         self.compute_forward_bindings();
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {

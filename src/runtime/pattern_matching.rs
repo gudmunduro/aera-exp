@@ -13,13 +13,13 @@ pub enum PatternMatchResult {
 pub fn compute_instantiated_states(
     system: &System,
     state: &SystemState,
-) -> HashMap<String, InstantiatedCst> {
+) -> HashMap<String, Vec<InstantiatedCst>> {
     system.csts
         .iter()
-        .flat_map(|(id, cst)| {
-            InstantiatedCst::try_instantiate_from_current_state(cst, state, system)
-                .into_iter()
-                .map(|cst| (id.clone(), cst))
+        .map(|(id, cst)| {
+            let csts = InstantiatedCst::try_instantiate_from_current_state(cst, state, system);
+
+            (id.clone(), csts)
         })
         .collect()
 }
@@ -86,13 +86,14 @@ pub fn bind_values_to_pattern(
         .collect()
 }
 
-/// This function expects entity id bindings to be filled in
-/// TODO: Make sure that is always the case in the goal, both if backward and forward chaining
 pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> bool {
     facts.iter().all(|f| {
+        let Some(entity_key) = f.pattern.entity_key(&HashMap::new()) else {
+          return false;
+        };
         state
             .variables
-            .get(&f.pattern.entity_key(&HashMap::new()).unwrap())
+            .get(&entity_key)
             .map(|v| *v == f.pattern.value)
             .unwrap_or(false)
     })

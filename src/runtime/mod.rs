@@ -13,11 +13,11 @@ use crate::types::pattern::{PatternItem, PatternValue};
 
 pub fn run_demo() {
     let mut system = System::new();
-    seed::setup_simple_seed(&mut system);
+    seed::setup_bindings_seed(&mut system);
     system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
 
     log::debug!("Instantiated composite states");
-    for state in system.current_state.instansiated_csts.values() {
+    for state in system.current_state.instansiated_csts.values().flatten() {
         log::debug!("State: {}", state.cst_id);
     }
 
