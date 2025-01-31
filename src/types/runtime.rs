@@ -132,6 +132,7 @@ impl PartialEq<PatternValue> for RuntimeValue {
             (RuntimeValue::Number(n), PatternValue::Number(n2)) => (n - n2).abs() < 0.1,
             (RuntimeValue::String(s), PatternValue::String(s2)) => s == s2,
             (RuntimeValue::List(l), PatternValue::List(l2)) => l == l2,
+            (RuntimeValue::EntityId(id), PatternValue::EntityId(id2)) => id == id2,
             _ => false,
         }
     }

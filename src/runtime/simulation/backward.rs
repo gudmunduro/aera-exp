@@ -155,16 +155,21 @@ fn create_variations_of_sub_goal(
             .collect(),
     };
     let bindings = goal_cst.binding_params();
-    let possible_entity_binding = goal_cst.all_possible_entity_bindings(system);
+    let mut possible_entity_binding = goal_cst.all_possible_entity_bindings(system);
+    // Possible entity bindings can be zero if there are no entity declarations in cst
+    if possible_entity_binding.is_empty() {
+        possible_entity_binding.push(HashMap::new());
+    }
 
     possible_entity_binding
         .iter()
         .flat_map(|entity_bindings| {
             bindings
                 .iter()
+                .filter(|b| !entity_bindings.contains_key(&**b))
                 // Get all possible values for each binding and create a 2d list from them, e.g. [ [("a", 2.0), ("a", 5.0)], [("b", 7.0)] ]
                 .map(|b| {
-                    goal.iter()
+                    let res = goal.iter()
                         .filter(|f| f.pattern.value.is_binding(b))
                         .filter_map(|f| {
                             system.current_state
@@ -172,7 +177,8 @@ fn create_variations_of_sub_goal(
                                 .get(&f.pattern.entity_key(&entity_bindings).unwrap())
                         })
                         .map(|v| (b.clone(), v.clone()))
-                        .collect_vec()
+                        .collect_vec();
+                    res
                 })
                 .multi_cartesian_product()
                 .map(|bindings| {

@@ -49,6 +49,15 @@ impl Mdl {
             .forward_computed
             .iter()
             .flat_map(|(_, f)| f.binding_params());
+        // TODO: Temporary hack to make grab command work
+        let right_params = match &self.right.pattern {
+            MdlRightValue::IMdl(imdl) => imdl.params.clone(),
+            MdlRightValue::MkVal(mk_val) => vec![mk_val.value.clone()],
+            MdlRightValue::Goal(_) => Vec::new(),
+        }.into_iter().filter_map(|pattern| match &pattern {
+            PatternItem::Binding(name) => Some(name.clone()),
+            _ => None,
+        });
 
         left_pattern
             .into_iter()
@@ -57,6 +66,8 @@ impl Mdl {
                 _ => None,
             })
             .chain(params_in_computed.into_iter())
+            .chain(right_params)
+            // Bindings assigned to function results cannot be passes as parameters
             .filter(|b| !self.forward_computed.contains_key(b))
             .unique()
             .collect()

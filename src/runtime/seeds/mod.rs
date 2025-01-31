@@ -1,13 +1,12 @@
+pub mod hand_grab_sphere;
+
+use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};
+use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{PatternItem, PatternValue};
 use crate::types::runtime::{RuntimeValue, System};
-use crate::types::{
-    Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal,
-    TimePatternRange, TimePatternValue,
-};
-use std::collections::HashMap;
 
 pub fn setup_bindings_seed(system: &mut System) {
     system.create_entity("h", "hand");
@@ -87,7 +86,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
                 ),
             )]
-            .into(),
+                .into(),
             backward_computed: [].into(),
             confidence: 1.0,
         },
@@ -175,7 +174,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     )))),
                 ),
             )]
-            .into(),
+                .into(),
             backward_computed: [(
                 "p".to_string(),
                 Function::Sub(
@@ -185,7 +184,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     )))),
                 ),
             )]
-            .into(),
+                .into(),
             confidence: 1.0,
         },
     );
@@ -274,7 +273,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
                 ),
             )]
-            .into(),
+                .into(),
             backward_computed: [].into(),
             confidence: 1.0,
         },
@@ -359,7 +358,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     )))),
                 ),
             )]
-            .into(),
+                .into(),
             backward_computed: [(
                 "p".to_string(),
                 Function::Sub(
@@ -369,7 +368,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     )))),
                 ),
             )]
-            .into(),
+                .into(),
             confidence: 1.0,
         },
     );

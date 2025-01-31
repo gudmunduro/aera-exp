@@ -46,7 +46,7 @@ impl TcpInterface {
         let variables = dm.variables.into_iter().map(|v| {
             let desc = v.meta_data.as_ref().unwrap();
 
-            (EntityVariableKey::new(self.comm_ids.get_name(desc.entity_id), self.comm_ids.get_name(desc.id)), decode_runtime_value(&v))
+            (EntityVariableKey::new(self.comm_ids.get_name(desc.entity_id), self.comm_ids.get_name(desc.id)), decode_runtime_value(&v, &self.comm_ids))
         }).collect();
 
         variables
@@ -62,7 +62,7 @@ impl TcpInterface {
                 variables: vec![
                     ProtoVariable {
                         meta_data: Some(command_desc.clone()),
-                        data: values_to_le_bytes(&command.params),
+                        data: values_to_le_bytes(&command.params, &self.comm_ids),
                     }
                 ],
                 time_span: 0,
@@ -131,20 +131,35 @@ impl TcpInterface {
     }
 }
 
-fn values_to_le_bytes(values: &[RuntimeValue]) -> Vec<u8> {
+fn values_to_le_bytes(values: &[RuntimeValue], comm_ids: &CommIds) -> Vec<u8> {
     values.into_iter().flat_map(|v| match v {
         RuntimeValue::Number(v) => v.to_le_bytes().to_vec(),
         RuntimeValue::String(v) => v.as_bytes().to_vec(),
-        RuntimeValue::EntityId(_) => panic!("Converting entity id to bytes is not supported"),
-        RuntimeValue::List(list) => values_to_le_bytes(list),
+        RuntimeValue::EntityId(e) => comm_ids.get_id(e).to_le_bytes().to_vec(),
+        RuntimeValue::List(list) => values_to_le_bytes(list, comm_ids),
     }).collect()
 }
 
-fn decode_runtime_value(proto_variable: &ProtoVariable) -> RuntimeValue {
-    if proto_variable.meta_data.as_ref().unwrap().data_type == DataType::Double as i32 {
-        RuntimeValue::Number(le_bytes_to_f64(&proto_variable.data))
+fn decode_runtime_value(proto_variable: &ProtoVariable, comm_ids: &CommIds) -> RuntimeValue {
+    let meta_data = proto_variable.meta_data.as_ref().unwrap();
+    if meta_data.data_type == DataType::Double as i32 {
+        if meta_data.dimensions[0] > 1 {
+            RuntimeValue::List(proto_variable.data.chunks(8).map(|d| RuntimeValue::Number(le_bytes_to_f64(d))).collect())
+        }
+        else {
+            RuntimeValue::Number(le_bytes_to_f64(&proto_variable.data))
+        }
     }
-    else if proto_variable.meta_data.as_ref().unwrap().data_type == DataType::String as i32 {
+    else if meta_data.data_type == DataType::CommunicationId as i32 {
+        let id = le_bytes_to_i64(&proto_variable.data) as i32;
+        if id != -1 {
+            RuntimeValue::EntityId(comm_ids.get_name(id).to_owned())
+        }
+        else {
+            RuntimeValue::List(vec![])
+        }
+    }
+    else if meta_data.data_type == DataType::String as i32 {
         RuntimeValue::String(le_bytes_to_string(&proto_variable.data))
     }
     else {

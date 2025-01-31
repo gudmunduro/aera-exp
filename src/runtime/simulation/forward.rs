@@ -2,7 +2,7 @@ use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
 use crate::types::models::BoundModel;
 use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{Fact, MkVal};
+use crate::types::{EntityVariableKey, Fact, MkVal};
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
@@ -80,8 +80,6 @@ pub fn forward_chain(
                 fwd_chained_model.compute_forward_bindings();
 
                 final_casual_models.push(fwd_chained_model);
-                // TODO: Probably needs to split here (i.e. forward chained model becomes new casual model),
-                // TODO: so predict_next_state can look at all casual models (and therefore their effects)
             }
         }
     }
@@ -114,16 +112,16 @@ pub fn forward_chain(
 
             let (children, is_goal_path) =
                 forward_chain(goal, goal_requirements, &next_state, data, observed_states);
-            if is_goal_path {
+            if is_in_goal_path {
                 is_in_goal_path = true;
-
-                let node = ForwardChainNode {
-                    command,
-                    children,
-                    is_in_goal_path: is_goal_path,
-                };
-                results.push(node);
             }
+
+            let node = ForwardChainNode {
+                command,
+                children,
+                is_in_goal_path: is_goal_path,
+            };
+            results.push(node);
         };
     }
 
