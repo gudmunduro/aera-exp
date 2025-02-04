@@ -5,6 +5,7 @@ use crate::types::{
     TimePatternValue,
 };
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::ops::{Add, Div, Mul, Sub};
 
 pub struct System {
@@ -226,6 +227,17 @@ impl Div<RuntimeValue> for RuntimeValue {
                     .collect(),
             ),
             _ => panic!("Value does not support division"),
+        }
+    }
+}
+
+impl Hash for RuntimeValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            RuntimeValue::Number(v) => ((v * 10.0) as i64).hash(state),
+            RuntimeValue::String(s) => s.hash(state),
+            RuntimeValue::List(l) => l.hash(state),
+            RuntimeValue::EntityId(e) => e.hash(state)
         }
     }
 }

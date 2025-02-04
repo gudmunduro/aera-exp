@@ -3,6 +3,7 @@ pub mod pattern_matching;
 mod simulation;
 mod seeds;
 
+use std::collections::HashSet;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{System, RuntimeValue, SystemTime};
@@ -37,7 +38,7 @@ pub fn run_demo() {
     log::debug!("Results of backward chaining");
     log::debug!("{bwd_result:#?}");
 
-    let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut Vec::new());
+    let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
     log::debug!("Results of forward chaining");
     log::debug!("Goal reachable: {goal_reachable}");
     log::debug!("{fwd_result:#?}");
@@ -95,7 +96,7 @@ pub fn run_with_tcp() {
         log::debug!("{bwd_result:#?}");
 
         // Perform forward chaining
-        let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut Vec::new());
+        let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
         log::debug!("Results of forward chaining");
         log::debug!("Goal reachable: {goal_reachable}");
         log::debug!("{fwd_result:#?}");

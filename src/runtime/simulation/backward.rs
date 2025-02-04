@@ -41,10 +41,6 @@ fn get_goal_requirements_for_goal(
     data: &System,
     observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
 ) -> Vec<BoundModel> {
-    if state_matches_facts(&data.current_state, goal) {
-        return vec![];
-    }
-
     let mut goal_requirements = Vec::new();
 
     let casual_goal_models = casual_models
@@ -71,11 +67,10 @@ fn get_goal_requirements_for_goal(
         .collect_vec();
 
     for c_goal_model in casual_goal_models {
-        // TODO: Re-add this but add to goal_requirements first
-        // TODO: Then remove early return at top (since these conditions do the same thing)
-        /*if instantiable_c_mdl.iter().any(|imdl_val| { imdl_val.model.model_id == c_goal_model.model_id }) {
+        if instantiable_cas_mdl.iter().any(|imdl_val| { imdl_val.model.model_id == c_goal_model.model.model_id }) {
+            goal_requirements.push(c_goal_model.clone());
             continue;
-        }*/
+        }
 
         // Skip this casual model if rhs matches the current state.
         // We don't have to consider the part of the goal that revolves around reaching the current state

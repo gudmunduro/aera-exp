@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
 use crate::types::models::BoundModel;
 use crate::types::pattern::bindings_in_pattern;
@@ -9,17 +12,46 @@ use itertools::Itertools;
 #[allow(unused)]
 pub struct ForwardChainNode {
     pub command: RuntimeCommand,
-    pub children: Vec<ForwardChainNode>,
+    pub children: Vec<Rc<ForwardChainNode>>,
     pub is_in_goal_path: bool,
 }
+
+#[derive(Debug, Clone)]
+pub struct ObservedState {
+    pub state: SystemState,
+    pub node: Option<Rc<ForwardChainNode>>,
+}
+
+impl ObservedState {
+    pub fn new(state: SystemState, node: Option<Rc<ForwardChainNode>>) -> Self {
+        Self {
+            state,
+            node
+        }
+    }
+}
+
+impl Hash for ObservedState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.state.variables.iter().collect_vec().hash(state);
+    }
+}
+
+impl PartialEq for ObservedState {
+    fn eq(&self, other: &Self) -> bool {
+        self.state.variables == other.state.variables
+    }
+}
+
+impl Eq for ObservedState {}
 
 pub fn forward_chain(
     goal: &Vec<Fact<MkVal>>,
     goal_requirements: &Vec<BoundModel>,
     state: &SystemState,
     data: &System,
-    observed_states: &mut Vec<SystemState>,
-) -> (Vec<ForwardChainNode>, bool) {
+    observed_states: &mut HashSet<ObservedState>,
+) -> (Vec<Rc<ForwardChainNode>>, bool) {
     if state_matches_facts(state, goal) {
         return (Vec::new(), true);
     }
@@ -105,22 +137,34 @@ pub fn forward_chain(
                 data,
             );
             // Don't look at next state if prediction changes nothing or if we have already seen this state
-            if state == &next_state || observed_states.contains(&next_state) {
+            let observed_state = ObservedState::new(next_state.clone(), None);
+            if state == &next_state || observed_states.contains(&observed_state) {
+                let saved_observed_state = observed_states.get(&observed_state).unwrap();
+                // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
+                // If it has not been computed, then we have most likely found a cycle in the graph
+                if let Some(node) = saved_observed_state.node.as_ref() {
+                    results.push(node.clone());
+                    if node.is_in_goal_path {
+                        is_in_goal_path = true;
+                    }
+                }
+
                 continue;
             }
-            observed_states.push(next_state.clone());
+            observed_states.insert(observed_state);
 
             let (children, is_goal_path) =
                 forward_chain(goal, goal_requirements, &next_state, data, observed_states);
-            if is_in_goal_path {
+            if is_goal_path {
                 is_in_goal_path = true;
             }
 
-            let node = ForwardChainNode {
+            let node = Rc::new(ForwardChainNode {
                 command,
                 children,
                 is_in_goal_path: is_goal_path,
-            };
+            });
+            observed_states.insert(ObservedState::new(next_state.clone(), Some(node.clone())));
             results.push(node);
         };
     }
