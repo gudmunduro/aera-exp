@@ -1,9 +1,10 @@
 use crate::runtime::pattern_matching::PatternMatchResult;
-use crate::types::pattern::{Pattern, PatternValue};
-use crate::types::runtime::{AssignedMkVal, RuntimeValue, System, SystemState};
+use crate::types::pattern::{Pattern};
+use crate::types::runtime::{AssignedMkVal, System, SystemState};
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
+use crate::types::value::Value;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cst {
@@ -36,14 +37,14 @@ impl Cst {
         entity_bindings.chain(fact_bindings).collect()
     }
 
-    pub fn fill_in_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Cst {
+    pub fn fill_in_bindings(&self, bindings: &HashMap<String, Value>) -> Cst {
         let mut facts = self.facts.clone();
 
         for fact in &mut facts {
             match &fact.pattern.value {
                 PatternItem::Binding(b) => {
                     if let Some(binding_val) = bindings.get(b) {
-                        fact.pattern.value = PatternItem::Value(binding_val.clone().into());
+                        fact.pattern.value = PatternItem::Value(binding_val.clone());
                     }
                 }
                 _ => {}
@@ -69,7 +70,7 @@ impl Cst {
     pub fn all_possible_entity_bindings(
         &self,
         system: &System,
-    ) -> Vec<HashMap<String, RuntimeValue>> {
+    ) -> Vec<HashMap<String, Value>> {
         self.entities
             .iter()
             .filter_map(|decl| {
@@ -81,7 +82,7 @@ impl Cst {
             .map(|(binding, entities)| {
                 entities
                     .iter()
-                    .map(|e| (binding.clone(), RuntimeValue::EntityId(e.clone())))
+                    .map(|e| (binding.clone(), Value::EntityId(e.clone())))
                     .collect_vec()
             })
             .multi_cartesian_product()
@@ -126,7 +127,7 @@ impl ICst {
                     EntityPatternValue::Binding(name) => {
                         f.pattern.entity_id = match binding_params[name] {
                             PatternItem::Binding(b) => EntityPatternValue::Binding(b.clone()),
-                            PatternItem::Value(PatternValue::EntityId(id)) => EntityPatternValue::EntityId(id.clone()),
+                            PatternItem::Value(Value::EntityId(id)) => EntityPatternValue::EntityId(id.clone()),
                             _ => f.pattern.entity_id
                         };
                     }
@@ -155,7 +156,7 @@ impl ICst {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BoundCst {
-    pub bindings: HashMap<String, RuntimeValue>,
+    pub bindings: HashMap<String, Value>,
     pub cst: Cst,
 }
 
@@ -240,7 +241,7 @@ impl InstantiatedCst {
     pub fn matches_param_pattern(
         &self,
         pattern: &Pattern,
-        assigned_bindings: &HashMap<String, RuntimeValue>,
+        assigned_bindings: &HashMap<String, Value>,
     ) -> PatternMatchResult {
         // TODO: Simplify function so it does not work with prior bindings on model, as that feature is never used and makes everything more complicated
         if pattern.len() != self.binding_params.len() {
@@ -265,7 +266,7 @@ impl InstantiatedCst {
                 }
                 PatternItem::Value(value) => {
                     binding_values
-                        .insert(b.to_owned(), BindingValue::Value(value.to_owned().into()));
+                        .insert(b.to_owned(), BindingValue::Value(value.to_owned()));
                 }
             }
         }
@@ -288,7 +289,7 @@ impl InstantiatedCst {
                     }
                     BindingValue::UnboundVariable(name) => {
                         returned_binding_values
-                            .insert(name.clone(), RuntimeValue::EntityId(entity_binding.entity_id.clone()));
+                            .insert(name.clone(), Value::EntityId(entity_binding.entity_id.clone()));
                     }
                 }
                 None => return PatternMatchResult::False,
@@ -360,8 +361,8 @@ impl InstantiatedCstEntityBinding {
 #[derive(Clone)]
 enum BindingValue {
     Any,
-    Value(RuntimeValue),
+    Value(Value),
     #[allow(unused)]
-    BoundVariable(String, RuntimeValue),
+    BoundVariable(String, Value),
     UnboundVariable(String),
 }

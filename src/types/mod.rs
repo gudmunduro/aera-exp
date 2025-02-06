@@ -2,13 +2,15 @@ use std::collections::HashMap;
 use anyhow::bail;
 use crate::runtime::pattern_matching::bind_values_to_pattern;
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{AssignedMkVal, RuntimeCommand, RuntimeValue};
+use crate::types::runtime::{AssignedMkVal, RuntimeCommand};
+use crate::types::value::Value;
 
 pub mod runtime;
 pub mod models;
 pub mod cst;
 pub mod pattern;
 pub mod functions;
+pub mod value;
 
 // Time is stored in milliseconds
 type Time = u64;
@@ -21,7 +23,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn to_runtime_command(&self, bindings: &HashMap<String, RuntimeValue>) -> anyhow::Result<RuntimeCommand> {
+    pub fn to_runtime_command(&self, bindings: &HashMap<String, Value>) -> anyhow::Result<RuntimeCommand> {
         let params = bind_values_to_pattern(&self.params, bindings);
 
         if params.len() < self.params.len() {
@@ -75,7 +77,7 @@ pub struct MkVal {
 }
 
 impl MkVal {
-    pub fn assign_value(&self, value: &RuntimeValue, entity_bindings: &HashMap<String, RuntimeValue>) -> AssignedMkVal {
+    pub fn assign_value(&self, value: &Value, entity_bindings: &HashMap<String, Value>) -> AssignedMkVal {
         AssignedMkVal::from_mk_val(self, value, entity_bindings)
     }
 
@@ -105,7 +107,7 @@ impl MkVal {
         matches_entity && self.var_name == mk_val.var_name && matches_value
     }
 
-    pub fn entity_key(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<EntityVariableKey> {
+    pub fn entity_key(&self, bindings: &HashMap<String, Value>) -> Option<EntityVariableKey> {
         Some(EntityVariableKey {
             entity_id: self.entity_id.get_id_with_bindings(bindings)?,
             var_name: self.var_name.clone(),
@@ -157,10 +159,10 @@ pub enum EntityPatternValue {
 }
 
 impl EntityPatternValue {
-    pub fn get_id_with_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<String> {
+    pub fn get_id_with_bindings(&self, bindings: &HashMap<String, Value>) -> Option<String> {
         match self {
             EntityPatternValue::Binding(b) => match bindings.get(b)? {
-                RuntimeValue::EntityId(id) => Some(id.clone()),
+                Value::EntityId(id) => Some(id.clone()),
                 v => panic!("Binding {b} expected to have type entity, but is {v:?}")
             }
             EntityPatternValue::EntityId(id) => Some(id.clone())

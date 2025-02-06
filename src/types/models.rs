@@ -2,12 +2,12 @@ use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatch
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
-use crate::types::runtime::{RuntimeValue, System, SystemState};
+use crate::types::runtime::{System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
-use simple_log::new;
 use tap::Tap;
+use crate::types::value::Value;
 
 pub type GoalName = String;
 
@@ -191,9 +191,9 @@ pub struct IMdl {
 impl IMdl {
     pub fn map_bindings_to_model(
         &self,
-        bindings: &HashMap<String, RuntimeValue>,
+        bindings: &HashMap<String, Value>,
         data: &System,
-    ) -> HashMap<String, RuntimeValue> {
+    ) -> HashMap<String, Value> {
         // TODO: Potentially needs to be fixed so it works with both forward and backward chaining
         let model = data.models.get(&self.model_id).unwrap();
         model
@@ -210,7 +210,7 @@ impl IMdl {
 
     pub fn instantiate(
         &self,
-        bindings: &HashMap<String, RuntimeValue>,
+        bindings: &HashMap<String, Value>,
         data: &System,
     ) -> BoundModel {
         let model = data
@@ -226,7 +226,7 @@ impl IMdl {
 
 #[derive(Clone, Debug)]
 pub struct BoundModel {
-    pub bindings: HashMap<String, RuntimeValue>,
+    pub bindings: HashMap<String, Value>,
     pub model: Mdl,
 }
 
@@ -308,7 +308,7 @@ impl BoundModel {
     }
 
     /// Add bindings from `bindings` for variables which were not bound before
-    pub fn fill_missing_bindings(&mut self, bindings: &HashMap<String, RuntimeValue>) {
+    pub fn fill_missing_bindings(&mut self, bindings: &HashMap<String, Value>) {
         self.bindings.extend(
             bindings
                 .iter()

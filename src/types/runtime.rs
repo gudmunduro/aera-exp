@@ -1,12 +1,12 @@
 use crate::types::cst::InstantiatedCst;
-use crate::types::pattern::{PatternItem, PatternValue};
+use crate::types::pattern::{PatternItem};
 use crate::types::{
-    cst::Cst, models::Mdl, EntityPatternValue, EntityVariableKey, MkVal, Time, TimePatternRange,
+    cst::Cst, models::Mdl, EntityVariableKey, MkVal, Time, TimePatternRange,
     TimePatternValue,
 };
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::ops::{Add, Div, Mul, Sub};
+use std::hash::{Hash};
+use crate::types::value::Value;
 
 pub struct System {
     pub current_state: SystemState,
@@ -45,7 +45,7 @@ impl System {
 
 #[derive(Clone, Debug)]
 pub struct SystemState {
-    pub variables: HashMap<EntityVariableKey, RuntimeValue>,
+    pub variables: HashMap<EntityVariableKey, Value>,
     pub instansiated_csts: HashMap<String, Vec<InstantiatedCst>>,
     pub time: SystemTime,
 }
@@ -99,174 +99,18 @@ impl SystemTime {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RuntimeValue {
-    Number(f64),
-    String(String),
-    List(Vec<RuntimeValue>),
-    EntityId(String),
-}
-
-impl RuntimeValue {
-    pub fn as_number(&self) -> f64 {
-        match &self {
-            RuntimeValue::Number(v) => *v,
-            _ => panic!("Value excepted to be a number"),
-        }
-    }
-    pub fn as_list(&self) -> &Vec<RuntimeValue> {
-        match &self {
-            RuntimeValue::List(l) => l,
-            _ => panic!("Value excepted to be a list"),
-        }
-    }
-    pub fn as_entity_id(&self) -> &str {
-        match &self {
-            RuntimeValue::EntityId(id) => id,
-            _ => panic!("Value excepted to be an entity id"),
-        }
-    }
-}
-
-impl PartialEq<PatternValue> for RuntimeValue {
-    fn eq(&self, other: &PatternValue) -> bool {
-        match (self, other) {
-            (RuntimeValue::Number(n), PatternValue::Number(n2)) => (n - n2).abs() < 0.1,
-            (RuntimeValue::String(s), PatternValue::String(s2)) => s == s2,
-            (RuntimeValue::List(l), PatternValue::List(l2)) => l == l2,
-            (RuntimeValue::EntityId(id), PatternValue::EntityId(id2)) => id == id2,
-            _ => false,
-        }
-    }
-}
-
-impl PartialEq<PatternItem> for RuntimeValue {
-    fn eq(&self, other: &PatternItem) -> bool {
-        match other {
-            PatternItem::Any => true,
-            // Value is assumed to always be a match for binding, which may not be correct in all cases
-            PatternItem::Binding(_) => true,
-            PatternItem::Value(value) => self == value,
-        }
-    }
-}
-
-impl From<PatternValue> for RuntimeValue {
-    fn from(value: PatternValue) -> Self {
-        match value {
-            PatternValue::Number(n) => RuntimeValue::Number(n),
-            PatternValue::String(s) => RuntimeValue::String(s),
-            PatternValue::List(l) => {
-                RuntimeValue::List(l.into_iter().map(|e| RuntimeValue::from(e)).collect())
-            }
-            PatternValue::EntityId(id) => RuntimeValue::EntityId(id),
-        }
-    }
-}
-
-impl Add<RuntimeValue> for RuntimeValue {
-    type Output = RuntimeValue;
-
-    fn add(self, rhs: RuntimeValue) -> Self::Output {
-        match self {
-            RuntimeValue::Number(n) => RuntimeValue::Number(n + rhs.as_number()),
-            RuntimeValue::List(l) => RuntimeValue::List(
-                l.into_iter()
-                    .zip(rhs.as_list())
-                    .map(|(e1, e2)| e1 + e2.clone())
-                    .collect(),
-            ),
-            _ => panic!("Value does not support addition"),
-        }
-    }
-}
-
-impl Sub<RuntimeValue> for RuntimeValue {
-    type Output = RuntimeValue;
-
-    fn sub(self, rhs: RuntimeValue) -> Self::Output {
-        match self {
-            RuntimeValue::Number(n) => RuntimeValue::Number(n - rhs.as_number()),
-            RuntimeValue::List(l) => RuntimeValue::List(
-                l.into_iter()
-                    .zip(rhs.as_list())
-                    .map(|(e1, e2)| e1 - e2.clone())
-                    .collect(),
-            ),
-            _ => panic!("Value does not support subtraction"),
-        }
-    }
-}
-
-impl Mul<RuntimeValue> for RuntimeValue {
-    type Output = RuntimeValue;
-
-    fn mul(self, rhs: RuntimeValue) -> Self::Output {
-        match self {
-            RuntimeValue::Number(n) => RuntimeValue::Number(n * rhs.as_number()),
-            RuntimeValue::List(l) => RuntimeValue::List(
-                l.into_iter()
-                    .zip(rhs.as_list())
-                    .map(|(e1, e2)| e1 * e2.clone())
-                    .collect(),
-            ),
-            _ => panic!("Value does not support multiplication"),
-        }
-    }
-}
-
-impl Div<RuntimeValue> for RuntimeValue {
-    type Output = RuntimeValue;
-
-    fn div(self, rhs: RuntimeValue) -> Self::Output {
-        match self {
-            RuntimeValue::Number(n) => RuntimeValue::Number(n / rhs.as_number()),
-            RuntimeValue::List(l) => RuntimeValue::List(
-                l.into_iter()
-                    .zip(rhs.as_list())
-                    .map(|(e1, e2)| e1 / e2.clone())
-                    .collect(),
-            ),
-            _ => panic!("Value does not support division"),
-        }
-    }
-}
-
-impl Hash for RuntimeValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            RuntimeValue::Number(v) => ((v * 10.0) as i64).hash(state),
-            RuntimeValue::String(s) => s.hash(state),
-            RuntimeValue::List(l) => l.hash(state),
-            RuntimeValue::EntityId(e) => e.hash(state)
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct RuntimeVariable {
-    pub name: String,
-    pub value: RuntimeValue,
-}
-
-impl RuntimeVariable {
-    pub fn new(name: String, value: RuntimeValue) -> RuntimeVariable {
-        RuntimeVariable { name, value }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct AssignedMkVal {
     pub entity_id: String,
     pub var_name: String,
     pub pattern_value: PatternItem,
-    pub value: RuntimeValue,
+    pub value: Value,
 }
 
 impl AssignedMkVal {
     pub fn from_mk_val(
         mk_val: &MkVal,
-        value: &RuntimeValue,
-        entity_bindings: &HashMap<String, RuntimeValue>,
+        value: &Value,
+        entity_bindings: &HashMap<String, Value>,
     ) -> AssignedMkVal {
         AssignedMkVal {
             entity_id: mk_val
@@ -284,5 +128,5 @@ impl AssignedMkVal {
 pub struct RuntimeCommand {
     pub name: String,
     pub entity_id: String,
-    pub params: Vec<RuntimeValue>,
+    pub params: Vec<Value>,
 }

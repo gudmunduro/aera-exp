@@ -4,12 +4,13 @@ use crate::runtime::pattern_matching::{
 use crate::types::cst::{Cst, InstantiatedCstEntityBinding};
 use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::PatternItem;
-use crate::types::runtime::{RuntimeValue, System};
+use crate::types::runtime::System;
 use crate::types::{
     EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MatchesFact, MkVal,
 };
 use itertools::Itertools;
 use std::collections::HashMap;
+use crate::types::value::Value;
 
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<BoundModel> {
     let mut instantiable_cas_mdl = Vec::new();
@@ -86,21 +87,25 @@ fn get_goal_requirements_for_goal(
                 .map(|val| val == v)
                 .unwrap_or(false))
             {
+                log::debug!("Casual model matches current state");
+                log::debug!("{rhs_mk_val_value:?}");
+                log::debug!("{:?}", data.current_state.variables.get(&mk_val_entity_key));
                 continue;
             }
         };
 
-        // 5.c
+        // Add this casual model as a goal
         goal_requirements.push(c_goal_model.clone());
 
-        // 5.d
+        // Requirement models where rhs matches casual model,
+        // with all bindings that we got from backward chaining (from casual model) included
         let goal_req_models = all_req_models(data)
             .into_iter()
             .filter(|m| m.right.pattern.as_imdl().model_id == c_goal_model.model.model_id)
             .map(|m| m.backward_chain_known_bindings_from_imdl(&c_goal_model))
             .collect_vec();
 
-        // 5.e
+        // Create sub goals from the requirement models
         for g_req in &goal_req_models {
             let sub_goal_cst = g_req.model.left.pattern.as_icst().expand_cst(data);
             let mut sub_goal = sub_goal_cst.facts.clone();
@@ -177,7 +182,7 @@ fn create_variations_of_sub_goal(
                 })
                 .multi_cartesian_product()
                 .map(|bindings| {
-                    let mut bindings: HashMap<String, RuntimeValue> =
+                    let mut bindings: HashMap<String, Value> =
                         bindings.into_iter().collect();
                     // Add the entity bindings that were required as well
                     bindings.extend(entity_bindings.clone().into_iter().collect_vec());
@@ -190,12 +195,12 @@ fn create_variations_of_sub_goal(
 
 fn insert_bindings_into_facts(
     facts: &mut Vec<Fact<MkVal>>,
-    bindings: &HashMap<String, RuntimeValue>,
+    bindings: &HashMap<String, Value>,
 ) {
     for fact in facts {
         match &fact.pattern.value {
             PatternItem::Binding(b) if bindings.contains_key(b) => {
-                fact.pattern.value = PatternItem::Value(bindings[b].clone().into());
+                fact.pattern.value = PatternItem::Value(bindings[b].clone());
             }
             _ => {}
         }
@@ -236,7 +241,7 @@ fn insert_bindings_for_rhs_from_goal(
                 PatternItem::Value(value) => {
                     casual_model
                         .bindings
-                        .insert(binding.to_owned(), value.into());
+                        .insert(binding.to_owned(), value);
                 }
                 _ => {}
             }
@@ -248,7 +253,7 @@ fn insert_bindings_for_rhs_from_goal(
                 EntityPatternValue::EntityId(entity_id) => {
                     casual_model.bindings.insert(
                         binding.to_owned(),
-                        RuntimeValue::EntityId(entity_id.clone()),
+                        Value::EntityId(entity_id.clone()),
                     );
                 }
                 _ => {}

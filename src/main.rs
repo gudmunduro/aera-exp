@@ -1,6 +1,8 @@
 pub mod types;
 mod runtime;
 pub mod interfaces;
+pub mod utils;
+
 pub mod protobuf {
     include!(concat!(env!("OUT_DIR"), "/tcp_io_device.rs"));
 }

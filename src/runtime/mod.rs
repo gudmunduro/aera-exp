@@ -6,12 +6,13 @@ mod seeds;
 use std::collections::HashSet;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
-use crate::types::runtime::{System, RuntimeValue, SystemTime};
+use crate::types::runtime::{System, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
 use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
-use crate::types::pattern::{PatternItem, PatternValue};
+use crate::types::pattern::{PatternItem};
+use crate::types::value::Value;
 
 pub fn run_demo() {
     let mut system = System::new();
@@ -28,7 +29,7 @@ pub fn run_demo() {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "pos".to_string(),
-                value: PatternItem::Value(PatternValue::List(vec![PatternValue::Number(5.0), PatternValue::Number(7.0)])),
+                value: PatternItem::Value(Value::List(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },
@@ -57,7 +58,7 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "position".to_string(),
-                    value: PatternItem::Value(PatternValue::List(vec![PatternValue::Number(-1.0), PatternValue::Number(0.5), PatternValue::Number(0.0)])),
+                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.5), Value::Number(0.0)])),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
@@ -67,7 +68,7 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Value(PatternValue::EntityId("b_0".to_string())),
+                    value: PatternItem::Value(Value::EntityId("b_0".to_string())),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },

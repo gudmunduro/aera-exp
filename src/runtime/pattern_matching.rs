@@ -1,12 +1,13 @@
 use crate::types::cst::InstantiatedCst;
 use crate::types::models::{Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{System, RuntimeValue, SystemState};
+use crate::types::runtime::{System, SystemState};
 use crate::types::{Fact, MkVal};
 use std::collections::HashMap;
+use crate::types::value::Value;
 
 pub enum PatternMatchResult {
-    True(HashMap<String, RuntimeValue>),
+    True(HashMap<String, Value>),
     False,
 }
 
@@ -74,14 +75,14 @@ pub fn all_req_models(data: &System) -> Vec<Mdl> {
 
 pub fn bind_values_to_pattern(
     pattern: &Pattern,
-    bindings: &HashMap<String, RuntimeValue>,
-) -> Vec<RuntimeValue> {
+    bindings: &HashMap<String, Value>,
+) -> Vec<Value> {
     pattern
         .iter()
         .filter_map(|p| match p {
             PatternItem::Any => panic!("Wildcard in parma pattern is currently not supported"),
             PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
-            PatternItem::Value(v) => Some(v.clone().into()),
+            PatternItem::Value(v) => Some(v.clone()),
         })
         .collect()
 }

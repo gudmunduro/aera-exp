@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::types::runtime::RuntimeValue;
+use crate::types::value::Value;
 
 pub type Pattern = Vec<PatternItem>;
 
@@ -7,46 +7,27 @@ pub type Pattern = Vec<PatternItem>;
 pub enum PatternItem {
     Any,
     Binding(String),
-    Value(PatternValue),
+    Value(Value),
 }
 
 impl PatternItem {
-    pub fn as_value(&self) -> &PatternValue {
+    pub fn as_value(&self) -> &Value {
         match self  {
             PatternItem::Value(v) => v,
             _ => panic!("Pattern item needs to be a value"),
         }
     }
 
-    pub fn get_value_with_bindings(&self, bindings: &HashMap<String, RuntimeValue>) -> Option<RuntimeValue> {
+    pub fn get_value_with_bindings(&self, bindings: &HashMap<String, Value>) -> Option<Value> {
         match self {
             PatternItem::Any => None,
             PatternItem::Binding(b) => bindings.get(b).cloned(),
-            PatternItem::Value(v) => Some(v.clone().into())
+            PatternItem::Value(v) => Some(v.clone())
         }
     }
 
     pub fn is_binding(&self, binding: &str) -> bool {
         matches!(self, PatternItem::Binding(b) if b == binding)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum PatternValue {
-    String(String),
-    Number(f64),
-    List(Vec<PatternValue>),
-    EntityId(String),
-}
-
-impl From<RuntimeValue> for PatternValue {
-    fn from(value: RuntimeValue) -> Self {
-        match value {
-            RuntimeValue::Number(n) => PatternValue::Number(n),
-            RuntimeValue::String(s) => PatternValue::String(s),
-            RuntimeValue::List(l) => PatternValue::List(l.into_iter().map(|e| PatternValue::from(e)).collect()),
-            RuntimeValue::EntityId(id) => PatternValue::EntityId(id),
-        }
     }
 }
 

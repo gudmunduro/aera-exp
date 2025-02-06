@@ -3,8 +3,8 @@ use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
-use crate::types::pattern::{PatternItem, PatternValue};
-use crate::types::runtime::{RuntimeValue, System};
+use crate::types::pattern::{PatternItem};
+use crate::types::runtime::System;
 
 pub fn setup_hand_grab_sphere_seed(system: &mut System) {
     system.create_entity("h", "hand");

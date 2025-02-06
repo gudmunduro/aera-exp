@@ -5,8 +5,9 @@ use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
-use crate::types::pattern::{PatternItem, PatternValue};
-use crate::types::runtime::{RuntimeValue, System};
+use crate::types::pattern::{PatternItem};
+use crate::types::runtime::System;
+use crate::types::value::Value;
 
 pub fn setup_bindings_seed(system: &mut System) {
     system.create_entity("h", "hand");
@@ -169,8 +170,8 @@ pub fn setup_bindings_seed(system: &mut System) {
                 "np".to_string(),
                 Function::Add(
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(PatternValue::List(
-                        vec![PatternValue::Number(0.0), PatternValue::Number(1.0)],
+                    Box::new(Function::Value(PatternItem::Value(Value::List(
+                        vec![Value::Number(0.0), Value::Number(1.0)],
                     )))),
                 ),
             )]
@@ -179,8 +180,8 @@ pub fn setup_bindings_seed(system: &mut System) {
                 "p".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(PatternValue::List(
-                        vec![PatternValue::Number(0.0), PatternValue::Number(1.0)],
+                    Box::new(Function::Value(PatternItem::Value(Value::List(
+                        vec![Value::Number(0.0), Value::Number(1.0)],
                     )))),
                 ),
             )]
@@ -191,11 +192,11 @@ pub fn setup_bindings_seed(system: &mut System) {
 
     system.current_state.variables.insert(
         EntityVariableKey::new("h", "pos"),
-        RuntimeValue::List(vec![RuntimeValue::Number(1.0), RuntimeValue::Number(1.0)]),
+        Value::List(vec![Value::Number(1.0), Value::Number(1.0)]),
     );
     system.current_state.variables.insert(
         EntityVariableKey::new("o", "pos"),
-        RuntimeValue::List(vec![RuntimeValue::Number(5.0), RuntimeValue::Number(5.0)]),
+        Value::List(vec![Value::Number(5.0), Value::Number(5.0)]),
     );
 }
 
@@ -353,7 +354,7 @@ pub fn setup_simple_seed(system: &mut System) {
                 "np".to_string(),
                 Function::Add(
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(PatternValue::Number(
+                    Box::new(Function::Value(PatternItem::Value(Value::Number(
                         1.0,
                     )))),
                 ),
@@ -363,7 +364,7 @@ pub fn setup_simple_seed(system: &mut System) {
                 "p".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(PatternValue::Number(
+                    Box::new(Function::Value(PatternItem::Value(Value::Number(
                         1.0,
                     )))),
                 ),
@@ -375,10 +376,10 @@ pub fn setup_simple_seed(system: &mut System) {
 
     system.current_state.variables.insert(
         EntityVariableKey::new("h", "position"),
-        RuntimeValue::Number(1.0),
+        Value::Number(1.0),
     );
     system.current_state.variables.insert(
         EntityVariableKey::new("o", "position"),
-        RuntimeValue::Number(5.0),
+        Value::Number(5.0),
     );
 }
