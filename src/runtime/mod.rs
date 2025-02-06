@@ -10,7 +10,7 @@ use crate::types::runtime::{System, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
-use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem};
 use crate::types::value::Value;
 
@@ -47,6 +47,7 @@ pub fn run_demo() {
     advance_time_step(&mut system);
 }
 
+#[allow(unused)]
 pub fn run_with_tcp() {
     let mut tcp_interface = TcpInterface::connect().expect("Failed to connect to controller with TCP");
     let mut system = System::new();

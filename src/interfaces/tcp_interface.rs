@@ -12,6 +12,7 @@ use crate::protobuf::variable_description::DataType;
 use crate::types::value::Value;
 
 pub struct TcpInterface {
+    #[allow(unused)]
     listener: TcpListener,
     stream: TcpStream,
     comm_ids: CommIds,
@@ -135,7 +136,8 @@ impl TcpInterface {
 fn values_to_le_bytes(values: &[Value], comm_ids: &CommIds) -> Vec<u8> {
     values.into_iter().flat_map(|v| match v {
         Value::Number(v) => v.to_le_bytes().to_vec(),
-        Value::UncertainNumber(mean, std) => [*mean, *std].into_iter().flat_map(f64::to_le_bytes).collect(),
+        // Std should probably never be sent to the controller
+        Value::UncertainNumber(m, _) => m.to_le_bytes().to_vec(),
         Value::String(v) => v.as_bytes().to_vec(),
         Value::EntityId(e) => comm_ids.get_id(e).to_le_bytes().to_vec(),
         Value::List(list) => values_to_le_bytes(list, comm_ids),

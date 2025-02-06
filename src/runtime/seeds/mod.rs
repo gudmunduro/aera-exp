@@ -200,6 +200,7 @@ pub fn setup_bindings_seed(system: &mut System) {
     );
 }
 
+#[allow(unused)]
 pub fn setup_simple_seed(system: &mut System) {
     system.create_entity("h", "hand");
     system.create_entity("o", "object");

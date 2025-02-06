@@ -5,7 +5,6 @@ use crate::types::{
     TimePatternValue,
 };
 use std::collections::HashMap;
-use std::hash::{Hash};
 use crate::types::value::Value;
 
 pub struct System {

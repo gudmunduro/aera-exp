@@ -5,7 +5,7 @@ use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
 use crate::types::models::BoundModel;
 use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{EntityVariableKey, Fact, MkVal};
+use crate::types::{Fact, MkVal};
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
