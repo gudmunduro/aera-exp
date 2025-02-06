@@ -238,109 +238,38 @@ impl InstantiatedCst {
         instantiated_csts
     }
 
-    pub fn matches_param_pattern(
-        &self,
-        pattern: &Pattern,
-        assigned_bindings: &HashMap<String, Value>,
-    ) -> PatternMatchResult {
-        // TODO: Simplify function so it does not work with prior bindings on model, as that feature is never used and makes everything more complicated
-        if pattern.len() != self.binding_params.len() {
-            return PatternMatchResult::False;
-        }
-
-        let mut returned_binding_values = assigned_bindings.clone();
-        let mut binding_values = HashMap::new();
-        for (p, b) in pattern.iter().zip(&self.binding_params) {
+    pub fn matches_param_pattern(&self, pattern: &Pattern) -> PatternMatchResult {
+        let mut bindings = HashMap::new();
+        for (b, p) in self.binding_params.iter().zip(pattern) {
             match p {
                 PatternItem::Binding(name) => {
-                    binding_values.insert(
-                        name.to_owned(),
-                        match returned_binding_values.get(name) {
-                            Some(value) => BindingValue::BoundVariable(name.clone(), value.clone()),
-                            None => BindingValue::UnboundVariable(name.clone()),
-                        },
-                    );
-                }
-                PatternItem::Any => {
-                    binding_values.insert(b.to_owned(), BindingValue::Any);
+                    bindings.insert(name.clone(), self.get_binding_value(b).unwrap());
                 }
                 PatternItem::Value(value) => {
-                    binding_values
-                        .insert(b.to_owned(), BindingValue::Value(value.to_owned()));
-                }
-            }
-        }
-
-        for entity_binding in &self.entity_bindings {
-            match binding_values.get(&entity_binding.binding) {
-                Some(b) => match b {
-                    BindingValue::Any => {
-                        // Automatic match
-                    }
-                    BindingValue::Value(value) => {
-                        if value.as_entity_id() != entity_binding.entity_id {
-                            return PatternMatchResult::False;
-                        }
-                    }
-                    BindingValue::BoundVariable(_, value) => {
-                        if value.as_entity_id() != entity_binding.entity_id {
-                            return PatternMatchResult::False;
-                        }
-                    }
-                    BindingValue::UnboundVariable(name) => {
-                        returned_binding_values
-                            .insert(name.clone(), Value::EntityId(entity_binding.entity_id.clone()));
+                    if self.get_binding_value(b).unwrap() != *value {
+                        return PatternMatchResult::False;
                     }
                 }
-                None => return PatternMatchResult::False,
-            }
-        }
-
-        for fact in self.facts.iter() {
-            match &fact.pattern.pattern_value {
-                PatternItem::Binding(binding_name) => {
-                    match binding_values.get(binding_name) {
-                        Some(b) => match b {
-                            BindingValue::Any => {
-                                // Automatic match
-                            }
-                            BindingValue::Value(value) => {
-                                if value != &fact.pattern.value {
-                                    return PatternMatchResult::False;
-                                }
-                            }
-                            BindingValue::BoundVariable(_, value) => {
-                                if value != &fact.pattern.value {
-                                    return PatternMatchResult::False;
-                                }
-                            }
-                            BindingValue::UnboundVariable(name) => {
-                                // If the variable is used in more then one place (and therefore previously bound)
-                                // we need to make sure it has the same value everywhere
-                                if let Some(value) = returned_binding_values.get(name) {
-                                    if value != &fact.pattern.value {
-                                        return PatternMatchResult::False;
-                                    }
-                                } else {
-                                    returned_binding_values
-                                        .insert(name.clone(), fact.pattern.value.clone());
-                                }
-                            }
-                        },
-                        None => return PatternMatchResult::False,
-                    }
-                }
-                // Any and value should not need to be checked
+                // We don't need to do anything on wildcard patterns
                 PatternItem::Any => {}
-                PatternItem::Value(v) => {
-                    if fact.pattern.value == *v {
-                        panic!("Cst does not match current state when matching with model (cst should have never been instantiated) ({})", self.cst_id)
-                    }
-                }
             }
         }
 
-        PatternMatchResult::True(returned_binding_values)
+        PatternMatchResult::True(bindings)
+    }
+
+    fn get_binding_value(&self, binding: &str) -> Option<Value> {
+        // If this binding is for a value inside a fact
+        if let Some(fact) = self.facts.iter().find(|f| matches!(&f.pattern.pattern_value, PatternItem::Binding(b) if b == binding)) {
+            Some(fact.pattern.value.clone())
+        }
+        // If this binding is for an entity
+        else if let Some(entity_binding) = self.entity_bindings.iter().find(|e| e.binding == binding) {
+            Some(Value::EntityId(entity_binding.entity_id.clone()))
+        }
+        else {
+            None
+        }
     }
 }
 
@@ -354,15 +283,4 @@ impl InstantiatedCstEntityBinding {
     pub fn new(binding: String, entity_id: String) -> Self {
         Self { binding, entity_id }
     }
-}
-
-// TODO: Find new place for this enum (or remove after simplifying function)
-
-#[derive(Clone)]
-enum BindingValue {
-    Any,
-    Value(Value),
-    #[allow(unused)]
-    BoundVariable(String, Value),
-    UnboundVariable(String),
 }

@@ -80,7 +80,7 @@ impl Mdl {
             _ => return None,
         };
         for instantiated_cst in state.instansiated_csts.get(&icst.cst_id)? {
-            match instantiated_cst.matches_param_pattern(&icst.pattern, &HashMap::new()) {
+            match instantiated_cst.matches_param_pattern(&icst.pattern) {
                 PatternMatchResult::True(bindings) => {
                     return Some(
                         BoundModel {
@@ -194,7 +194,6 @@ impl IMdl {
         bindings: &HashMap<String, Value>,
         data: &System,
     ) -> HashMap<String, Value> {
-        // TODO: Potentially needs to be fixed so it works with both forward and backward chaining
         let model = data.models.get(&self.model_id).unwrap();
         model
             .binding_param()
