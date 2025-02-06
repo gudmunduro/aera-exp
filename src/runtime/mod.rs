@@ -64,12 +64,52 @@ pub fn run_with_tcp() {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
         ],
-        vec![
+        /*vec![
             Fact {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Value(Value::EntityId("b_0".to_string())),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],*/
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_0".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.5), Value::Number(0.0)])),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Value(Value::List(vec![])),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_1".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.7), Value::Number(0.0)])),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_2".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.3), Value::Number(0.0)])),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
@@ -104,12 +144,13 @@ pub fn run_with_tcp() {
         log::debug!("{fwd_result:#?}");
 
         // Send command to controller
-        let node = fwd_result.iter().sorted_by_key(|n| n.is_in_goal_path).rev().next();
+        let node = fwd_result.iter().filter(|n| n.is_in_goal_path).next();
         if let Some(node) = node {
             tcp_interface.execute_command(&node.command).expect("Failed to execute command with TCP");
             log::info!("Executed command {:?}", &node.command);
 
             if node.children.is_empty() && node.is_in_goal_path && goals.len() > 1 {
+                log::debug!("Goal achieved, switching to next goal");
                 goals.remove(0);
                 goal = goals[0].clone();
             }

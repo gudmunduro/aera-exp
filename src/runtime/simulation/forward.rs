@@ -139,10 +139,12 @@ pub fn forward_chain(
             // Don't look at next state if prediction changes nothing or if we have already seen this state
             let observed_state = ObservedState::new(next_state.clone(), None);
             if state == &next_state || observed_states.contains(&observed_state) {
-                let saved_observed_state = observed_states.get(&observed_state).unwrap();
                 // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
                 // If it has not been computed, then we have most likely found a cycle in the graph
-                if let Some(node) = saved_observed_state.node.as_ref() {
+                if let Some(node) = observed_states
+                        .get(&observed_state)
+                        .map(|s| s.node.as_ref())
+                        .flatten() {
                     results.push(node.clone());
                     if node.is_in_goal_path {
                         is_in_goal_path = true;

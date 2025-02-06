@@ -25,13 +25,14 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<BoundModel>
 
     let casual_models = all_causal_models(data);
     let mut observed_goals = Vec::new();
-    get_goal_requirements_for_goal(
+    let (goal_req_models, _) = get_goal_requirements_for_goal(
         goal,
         &instantiable_cas_mdl,
         &casual_models,
         data,
         &mut observed_goals,
-    )
+    );
+    goal_req_models
 }
 
 /// The recursive part of backward chaining
@@ -41,7 +42,8 @@ fn get_goal_requirements_for_goal(
     casual_models: &Vec<Mdl>,
     data: &System,
     observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
-) -> Vec<BoundModel> {
+) -> (Vec<BoundModel>, bool) {
+    let mut reached_current_state = false;
     let mut goal_requirements = Vec::new();
 
     let casual_goal_models = casual_models
@@ -71,6 +73,7 @@ fn get_goal_requirements_for_goal(
     for c_goal_model in casual_goal_models {
         // If the casual model can be reached directly from the current state, then we don't have to look further back
         if instantiable_cas_mdl.iter().any(|imdl_val| { imdl_val.model.model_id == c_goal_model.model.model_id }) {
+            reached_current_state = true;
             goal_requirements.push(c_goal_model.clone());
             continue;
         }
@@ -105,6 +108,7 @@ fn get_goal_requirements_for_goal(
             .collect_vec();
 
         // Create sub goals from the requirement models
+        let mut any_sub_goal_reached_current_state = false;
         for g_req in &goal_req_models {
             let sub_goal_cst = g_req.model.left.pattern.as_icst().expand_cst(data);
             let mut sub_goal = sub_goal_cst.facts.clone();
@@ -121,18 +125,30 @@ fn get_goal_requirements_for_goal(
                 }
                 observed_goals.push(sub_goal.clone());
 
-                goal_requirements.extend(get_goal_requirements_for_goal(
+                let (sub_goal_req_models, sub_goal_reached_current_state) = get_goal_requirements_for_goal(
                     &sub_goal,
                     instantiable_cas_mdl,
                     casual_models,
                     data,
                     observed_goals,
-                ));
+                );
+
+                // Prune dead ends from backward chaining tree (paths that cannot be used to reach the current state)
+                if sub_goal_reached_current_state {
+                    goal_requirements.extend(sub_goal_req_models);
+                    reached_current_state = true;
+                    any_sub_goal_reached_current_state = true;
+                }
             }
+        }
+
+        // Prune the current casual model if it is a dead end
+        if !any_sub_goal_reached_current_state {
+            goal_requirements.pop();
         }
     }
 
-    goal_requirements
+    (goal_requirements, reached_current_state)
 }
 
 /// Create variations of the subgoal with possible binding assignments

@@ -27,7 +27,7 @@ impl Mdl {
             MdlLeftValue::ICst(cst) => cst.pattern.clone(),
             MdlLeftValue::Command(cmd) => {
                 if let EntityPatternValue::Binding(b) = &cmd.entity_id {
-                    // Make PatternItem binding for the entity id binding as well so it appears first in params
+                    // Add entity id binding as well so it appears first in params
                     vec![PatternItem::Binding(b.clone())]
                         .into_iter()
                         .chain(cmd.params.clone())
@@ -38,7 +38,7 @@ impl Mdl {
             }
             MdlLeftValue::MkVal(mk_val) => {
                 if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
-                    // Make PatternItem binding for the entity id binding as well so it appears first in params
+                    // Add entity id binding as well so it appears first in params
                     vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
                 } else {
                     vec![mk_val.value.clone()]
@@ -52,7 +52,13 @@ impl Mdl {
         // TODO: Temporary hack to make grab command work
         let right_params = match &self.right.pattern {
             MdlRightValue::IMdl(imdl) => imdl.params.clone(),
-            MdlRightValue::MkVal(mk_val) => vec![mk_val.value.clone()],
+            MdlRightValue::MkVal(mk_val) => {
+                if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
+                    vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
+                } else {
+                    vec![mk_val.value.clone()]
+                }
+            },
             MdlRightValue::Goal(_) => Vec::new(),
         }.into_iter().filter_map(|pattern| match &pattern {
             PatternItem::Binding(name) => Some(name.clone()),

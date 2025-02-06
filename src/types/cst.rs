@@ -185,12 +185,26 @@ impl InstantiatedCst {
                 .facts
                 .iter()
                 .map(|f| {
+                    let var_value = state
+                        .variables
+                        .get(&f.pattern.entity_key(&entity_bindings)?)?;
+
+                    match &f.pattern.value {
+                        // If a fact in the cst is a value that does not match the variable value
+                        PatternItem::Value(v) if v != var_value => {
+                            return None;
+                        }
+                        // If it is a binding for an entity (binding with a known value), that does not match the var value
+                        PatternItem::Binding(b) if entity_bindings.contains_key(b) && entity_bindings[b] != *var_value => {
+                            return None;
+                        }
+                        _ => {}
+                    }
+
                     Some(
                         f.with_pattern(
                             f.pattern.assign_value(
-                                state
-                                    .variables
-                                    .get(&f.pattern.entity_key(&entity_bindings)?)?,
+                                var_value,
                                 &entity_bindings,
                             ),
                         ),
