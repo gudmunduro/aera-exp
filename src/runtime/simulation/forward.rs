@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::runtime::pattern_matching::{all_req_models, state_matches_facts};
-use crate::types::models::BoundModel;
+use crate::runtime::pattern_matching::{all_req_models, compare_imdls, state_matches_facts};
+use crate::types::models::{BoundModel, IMdl};
 use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::{Fact, MkVal};
@@ -47,7 +47,7 @@ impl Eq for ObservedState {}
 
 pub fn forward_chain(
     goal: &Vec<Fact<MkVal>>,
-    goal_requirements: &Vec<BoundModel>,
+    goal_requirements: &Vec<IMdl>,
     state: &SystemState,
     data: &System,
     observed_states: &mut HashSet<ObservedState>,
@@ -69,50 +69,21 @@ pub fn forward_chain(
     for req_model in &insatiable_req_models {
         for casual_model in goal_requirements
             .iter()
-            .filter(|cm| cm.model.model_id == req_model.model.right.pattern.as_imdl().model_id)
+            .filter(|cm| compare_imdls(cm, &req_model.model.right.pattern.as_filled_in_imdl(&req_model.bindings), true, true))
         {
-            // Get the requirement model with bindings from the causal model
-            let backward_chained_model = req_model
+            let fwd_chained_imdl = req_model
                 .model
-                .backward_chain_known_bindings_from_imdl(casual_model);
+                .right
+                .pattern
+                .as_filled_in_imdl(&req_model.bindings);
 
-            // Can req_model instantiate casual_model with equal values
-            // We only need to look at known bindings from req_model that appear in the pattern
-            // (unknown bindings that appear only in rhs can be filled in with backward chaining)
-            let pattern_bindings =
-                bindings_in_pattern(&req_model.model.right.pattern.as_imdl().params);
-            let bindings_to_compare = pattern_bindings
-                .into_iter()
-                .filter(|b| {
-                    req_model.bindings.contains_key(b)
-                        && backward_chained_model.bindings.contains_key(b)
-                })
-                .collect_vec();
-            let pattern_bindings_match_casual_model = req_model
-                .bindings
-                .iter()
-                .filter(|(b, _)| bindings_to_compare.contains(b))
-                .all(|(b, v)| {
-                    backward_chained_model
-                        .bindings
-                        .iter()
-                        .any(|(b2, v2)| b == b2 && v == v2)
-                });
+            // Fill in bindings that we got from backward chaining but not forward chaining
+            let merged_imdl = fwd_chained_imdl.merge_with(casual_model.clone());
+            let mut fwd_chained_model = merged_imdl
+                .instantiate(&req_model.bindings, data);
+            fwd_chained_model.compute_forward_bindings();
 
-            if pattern_bindings_match_casual_model {
-                let mut fwd_chained_model = req_model
-                    .model
-                    .right
-                    .pattern
-                    .as_imdl()
-                    .instantiate(&req_model.bindings, data);
-
-                // Fill in bindings that we got from backward chaining but not forward chaining
-                fwd_chained_model.fill_missing_bindings(&casual_model.bindings);
-                fwd_chained_model.compute_forward_bindings();
-
-                final_casual_models.push(fwd_chained_model);
-            }
+            final_casual_models.push(fwd_chained_model);
         }
     }
 

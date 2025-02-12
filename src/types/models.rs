@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{compute_instantiated_states, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_instantiated_states, extract_bindings_from_pattern, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::Pattern;
@@ -8,8 +8,6 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use tap::Tap;
 use crate::types::value::Value;
-
-pub type GoalName = String;
 
 #[derive(Clone, Debug)]
 pub struct Mdl {
@@ -59,7 +57,6 @@ impl Mdl {
                     vec![mk_val.value.clone()]
                 }
             },
-            MdlRightValue::Goal(_) => Vec::new(),
         }.into_iter().filter_map(|pattern| match &pattern {
             PatternItem::Binding(name) => Some(name.clone()),
             _ => None,
@@ -103,28 +100,16 @@ impl Mdl {
         None
     }
 
-    /// Get a bound version of this model from rhs imdl and an already bound model of the same type as in imdl
-    pub fn backward_chain_known_bindings_from_imdl(&self, bound_model: &BoundModel) -> BoundModel {
-        let imdl = self.right.pattern.as_imdl();
-        let bindings = bound_model
-            .model
-            .binding_param()
-            .iter()
-            .zip(&imdl.params)
-            .filter_map(|(param, pattern)| match pattern {
-                PatternItem::Binding(b) => bound_model
-                    .bindings
-                    .get(param)
-                    .map(|value| (b.clone(), value.clone())),
-                _ => None,
-            })
-            .collect();
+    /// Get a bound version of this model from rhs imdl
+    pub fn backward_chain_known_bindings_from_imdl(&self, imdl: &IMdl) -> BoundModel {
+        let self_imdl = self.right.pattern.as_imdl();
+        let bindings = extract_bindings_from_pattern(&self_imdl.params, &imdl.params);
 
         BoundModel {
             model: self.clone(),
             bindings,
         }
-        .tap_mut(|m| m.compute_backward_bindings())
+            .tap_mut(|m| m.compute_backward_bindings())
     }
 }
 
@@ -162,7 +147,6 @@ impl MdlLeftValue {
 pub enum MdlRightValue {
     IMdl(IMdl),
     MkVal(MkVal),
-    Goal(GoalName),
 }
 
 impl MdlRightValue {
@@ -173,17 +157,16 @@ impl MdlRightValue {
         }
     }
 
+    pub fn as_filled_in_imdl(&self, bindings: &HashMap<String, Value>) -> IMdl {
+        let mut imdl = self.as_imdl().clone();
+        imdl.params = fill_in_pattern_with_bindings(imdl.params, bindings);
+        imdl
+    }
+
     pub fn as_mk_val(&self) -> &MkVal {
         match self {
             MdlRightValue::MkVal(mk_val) => mk_val,
             _ => panic!("Rhs needs to be mk.val in model"),
-        }
-    }
-
-    pub fn as_goal(&self) -> &str {
-        match self {
-            MdlRightValue::Goal(goal) => goal,
-            _ => panic!("Rhs needs to be a goal in model"),
         }
     }
 }
@@ -227,6 +210,11 @@ impl IMdl {
 
         BoundModel { bindings, model }.tap_mut(|m| m.compute_forward_bindings())
     }
+
+    pub fn merge_with(mut self, imdl: IMdl) -> IMdl {
+        self.params = combine_pattern_bindings(self.params, imdl.params);
+        self
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -236,11 +224,22 @@ pub struct BoundModel {
 }
 
 impl BoundModel {
-    pub fn rhs_imdl_matches_bound_model(&self, model: &BoundModel, data: &System) -> bool {
-        let imdl = self.model.right.pattern.as_imdl();
-        let are_bindings_equal = imdl.map_bindings_to_model(&self.bindings, data) == model.bindings;
-        let are_models_equal = self.model.model_id == model.model.model_id;
-        are_bindings_equal && are_models_equal
+    /// Create imdl that would be used to instantiate this model, including known binding values.
+    /// Can be used to compare it to imdl on rhs of req. models
+    pub fn imdl_for_model(&self) -> IMdl {
+        let binding_params = self.model.binding_param();
+        let param_pattern = binding_params.iter()
+            .map(|b| match self.bindings.get(b) {
+                Some(v) => PatternItem::Value(v.clone()),
+                // There is no specific binding in the imdl, since those depend on the model the imdl is in
+                None => PatternItem::Any
+            })
+            .collect();
+
+        IMdl {
+            model_id: self.model.model_id.clone(),
+            params: param_pattern,
+        }
     }
 
     /// Predict what happens to SystemState after model is executed
