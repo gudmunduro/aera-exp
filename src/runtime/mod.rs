@@ -4,13 +4,14 @@ mod simulation;
 mod seeds;
 
 use std::collections::HashSet;
+use std::rc::Rc;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{System, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
-use crate::runtime::simulation::forward::forward_chain;
-use crate::types::{EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
+use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem};
 use crate::types::value::Value;
 
@@ -64,16 +65,6 @@ pub fn run_with_tcp() {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
         ],
-        /*vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::EntityId("b_0".to_string())),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-        ],*/
         vec![
             Fact {
                 pattern: MkVal {
@@ -117,6 +108,7 @@ pub fn run_with_tcp() {
     ];
 
     let mut goal = goals[0].clone();
+    let mut committed_path: Option<Rc<ForwardChainNode>> = None;
 
     loop {
         advance_time_step(&mut system);
@@ -132,24 +124,37 @@ pub fn run_with_tcp() {
             log::debug!("State: {}", state.cst_id);
         }
 
-        // Perform backward chaining
-        let bwd_result = backward_chain(&goal, &system);
-        log::debug!("Results of backward chaining");
-        log::debug!("{bwd_result:#?}");
+        let node = if let Some(committed) = committed_path.as_ref() {
+            Some(committed.clone())
+        } else {
+            // Perform backward chaining
+            let bwd_result = backward_chain(&goal, &system);
+            log::debug!("Results of backward chaining");
+            log::debug!("{bwd_result:#?}");
 
-        // Perform forward chaining
-        let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
-        log::debug!("Results of forward chaining");
-        log::debug!("Goal reachable: {goal_reachable}");
-        log::debug!("{fwd_result:#?}");
+            log::debug!("b_0 pos");
+            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("b_0", "position")]);
+
+            log::debug!("h pos");
+            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("h", "position")]);
+
+            // Perform forward chaining
+            let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
+            log::debug!("Results of forward chaining");
+            log::debug!("Goal reachable: {goal_reachable}");
+            log::debug!("{fwd_result:#?}");
+            fwd_result.into_iter().filter(|n| n.is_in_goal_path).next()
+        };
 
         // Send command to controller
-        let node = fwd_result.iter().filter(|n| n.is_in_goal_path).next();
         if let Some(node) = node {
             tcp_interface.execute_command(&node.command).expect("Failed to execute command with TCP");
             log::info!("Executed command {:?}", &node.command);
 
-            if node.children.is_empty() && node.is_in_goal_path && goals.len() > 1 {
+            if !node.children.is_empty() {
+                committed_path = Some(node.children.iter().filter(|n| n.is_in_goal_path).next().unwrap().clone());
+            }
+            else if node.children.is_empty() && node.is_in_goal_path && goals.len() > 1 {
                 log::debug!("Goal achieved, switching to next goal");
                 goals.remove(0);
                 goal = goals[0].clone();

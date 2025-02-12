@@ -1,16 +1,12 @@
-use crate::runtime::pattern_matching::{
-    all_causal_models, all_req_models, are_goals_equal,
-};
+use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, Mdl};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
-use crate::types::{
-    EntityPatternValue, Fact, MatchesFact, MkVal,
-};
-use itertools::Itertools;
-use std::collections::HashMap;
 use crate::types::value::Value;
+use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
+use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<BoundModel> {
     let mut instantiable_cas_mdl = Vec::new();
@@ -72,7 +68,10 @@ fn get_goal_requirements_for_goal(
 
     for c_goal_model in casual_goal_models {
         // If the casual model can be reached directly from the current state, then we don't have to look further back
-        if instantiable_cas_mdl.iter().any(|imdl_val| { imdl_val.model.model_id == c_goal_model.model.model_id }) {
+        if instantiable_cas_mdl.iter().any(|imdl_val| {
+            imdl_val.model.model_id == c_goal_model.model.model_id
+                && are_shared_bindings_equal(&imdl_val.bindings, &c_goal_model.bindings)
+        }) {
             reached_current_state = true;
             goal_requirements.push(c_goal_model.clone());
             continue;
@@ -125,13 +124,14 @@ fn get_goal_requirements_for_goal(
                 }
                 observed_goals.push(sub_goal.clone());
 
-                let (sub_goal_req_models, sub_goal_reached_current_state) = get_goal_requirements_for_goal(
-                    &sub_goal,
-                    instantiable_cas_mdl,
-                    casual_models,
-                    data,
-                    observed_goals,
-                );
+                let (sub_goal_req_models, sub_goal_reached_current_state) =
+                    get_goal_requirements_for_goal(
+                        &sub_goal,
+                        instantiable_cas_mdl,
+                        casual_models,
+                        data,
+                        observed_goals,
+                    );
 
                 // Prune dead ends from backward chaining tree (paths that cannot be used to reach the current state)
                 if sub_goal_reached_current_state {
@@ -187,10 +187,12 @@ fn create_variations_of_sub_goal(
                 .filter(|b| !entity_bindings.contains_key(&**b))
                 // Get all possible values for each binding and create a 2d list from them, e.g. [ [("a", 2.0), ("a", 5.0)], [("b", 7.0)] ]
                 .map(|b| {
-                    let res = goal.iter()
+                    let res = goal
+                        .iter()
                         .filter(|f| f.pattern.value.is_binding(b))
                         .filter_map(|f| {
-                            system.current_state
+                            system
+                                .current_state
                                 .variables
                                 .get(&f.pattern.entity_key(&entity_bindings).unwrap())
                         })
@@ -202,8 +204,7 @@ fn create_variations_of_sub_goal(
                 .multi_cartesian_product()
                 // Combine value bindings with entity bindings and create facts containing them for the goal
                 .map(|bindings| {
-                    let mut bindings: HashMap<String, Value> =
-                        bindings.into_iter().collect();
+                    let mut bindings: HashMap<String, Value> = bindings.into_iter().collect();
                     // Insert the entity bindings into the map as well
                     bindings.extend(entity_bindings.clone().into_iter().collect_vec());
 
@@ -215,10 +216,7 @@ fn create_variations_of_sub_goal(
 
 /// Turn bindings into values in facts based on a binding map
 /// Ignores bindings that don't exist in the binding map (they will stay undbound)
-fn insert_bindings_into_facts(
-    facts: &mut Vec<Fact<MkVal>>,
-    bindings: &HashMap<String, Value>,
-) {
+fn insert_bindings_into_facts(facts: &mut Vec<Fact<MkVal>>, bindings: &HashMap<String, Value>) {
     for fact in facts {
         match &fact.pattern.value {
             PatternItem::Binding(b) if bindings.contains_key(b) => {
@@ -227,7 +225,7 @@ fn insert_bindings_into_facts(
             _ => {}
         }
         match &fact.pattern.entity_id {
-            EntityPatternValue::Binding(b) if bindings.contains_key(b) => {
+            EntityPatternValue::Binding(b) if bindings.contains_key(b) && matches!(bindings[b], Value::EntityId(_)) => {
                 fact.pattern.entity_id =
                     EntityPatternValue::EntityId(bindings[b].as_entity_id().to_owned());
             }
@@ -264,9 +262,7 @@ fn insert_bindings_for_rhs_from_goal(
             // Only add binding if goal value is a real value
             match goal_value {
                 PatternItem::Value(value) => {
-                    casual_model
-                        .bindings
-                        .insert(binding.to_owned(), value);
+                    casual_model.bindings.insert(binding.to_owned(), value);
                 }
                 _ => {}
             }
@@ -276,10 +272,9 @@ fn insert_bindings_for_rhs_from_goal(
             // Same with entity id
             match &goal_fact.pattern.entity_id {
                 EntityPatternValue::EntityId(entity_id) => {
-                    casual_model.bindings.insert(
-                        binding.to_owned(),
-                        Value::EntityId(entity_id.clone()),
-                    );
+                    casual_model
+                        .bindings
+                        .insert(binding.to_owned(), Value::EntityId(entity_id.clone()));
                 }
                 _ => {}
             }
@@ -290,4 +285,9 @@ fn insert_bindings_for_rhs_from_goal(
     }
 
     result
+}
+
+pub fn are_shared_bindings_equal(b1: &HashMap<String, Value>, b2: &HashMap<String, Value>) -> bool {
+    let mut shared = b1.keys().collect::<HashSet<&String>>().intersection(&b2.keys().collect::<HashSet<&String>>()).cloned().collect_vec();
+    shared.iter().all(|k| b1[*k] == b2[*k])
 }

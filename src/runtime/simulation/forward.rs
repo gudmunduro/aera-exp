@@ -71,7 +71,7 @@ pub fn forward_chain(
             .iter()
             .filter(|cm| cm.model.model_id == req_model.model.right.pattern.as_imdl().model_id)
         {
-            // 2.1
+            // Get the requirement model with bindings from the causal model
             let backward_chained_model = req_model
                 .model
                 .backward_chain_known_bindings_from_imdl(casual_model);
