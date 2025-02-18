@@ -1,5 +1,7 @@
+use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Div, Mul, Sub};
+use itertools::Itertools;
 use crate::types::pattern::PatternItem;
 use crate::utils::{float_cmp, float_eq};
 use crate::utils::math::probability_density;
@@ -98,7 +100,7 @@ impl Sub<Value> for Value {
             (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m - n, s),
             (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n - m, s),
             (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) if float_eq(s1, s2) => Value::UncertainNumber(m1 - m2, s1),
-            _ => panic!("Value does not support subtraction"),
+            (v1, v2) => panic!("Value does not support subtraction ({v1:?} - {v2:?})"),
         }
     }
 }
@@ -150,5 +152,19 @@ impl Hash for Value {
             Value::List(l) => l.hash(state),
             Value::EntityId(e) => e.hash(state)
         }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Value::Number(n) => n.to_string(),
+            Value::UncertainNumber(m, s) => format!("(uncertain {m} {s})"),
+            Value::String(s) => format!("\"{}\"", s.to_owned()),
+            Value::List(l) => format!("[{}]", l.iter().map(|e| e.to_string()).join(" ")),
+            Value::EntityId(id) => id.to_owned()
+        })?;
+
+        Ok(())
     }
 }

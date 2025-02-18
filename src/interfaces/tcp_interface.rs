@@ -154,6 +154,14 @@ fn decode_runtime_value(proto_variable: &ProtoVariable, comm_ids: &CommIds) -> V
             Value::Number(le_bytes_to_f64(&proto_variable.data))
         }
     }
+    else if meta_data.data_type == DataType::Int64 as i32 {
+        if meta_data.dimensions[0] > 1 {
+            Value::List(proto_variable.data.chunks(8).map(|d| Value::Number(le_bytes_to_i64(d) as f64)).collect())
+        }
+        else {
+            Value::Number(le_bytes_to_i64(&proto_variable.data) as f64)
+        }
+    }
     else if meta_data.data_type == DataType::CommunicationId as i32 {
         let id = le_bytes_to_i64(&proto_variable.data) as i32;
         if id != -1 {

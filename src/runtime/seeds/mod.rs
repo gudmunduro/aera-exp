@@ -1,4 +1,5 @@
 pub mod hand_grab_sphere;
+pub mod robot_advanced_move;
 
 use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};

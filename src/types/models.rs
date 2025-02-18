@@ -6,6 +6,7 @@ use crate::types::runtime::{System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use tap::Tap;
 use crate::types::value::Value;
 
@@ -214,6 +215,14 @@ impl IMdl {
     pub fn merge_with(mut self, imdl: IMdl) -> IMdl {
         self.params = combine_pattern_bindings(self.params, imdl.params);
         self
+    }
+}
+
+impl Display for IMdl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(imdl {} {})", self.model_id, self.params.iter().map(|p| p.to_string()).join(" "))?;
+
+        Ok(())
     }
 }
 

@@ -14,6 +14,7 @@ pub struct ForwardChainNode {
     pub command: RuntimeCommand,
     pub children: Vec<Rc<ForwardChainNode>>,
     pub is_in_goal_path: bool,
+    pub child_count: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -51,13 +52,14 @@ pub fn forward_chain(
     state: &SystemState,
     data: &System,
     observed_states: &mut HashSet<ObservedState>,
-) -> (Vec<Rc<ForwardChainNode>>, bool) {
+) -> (Vec<Rc<ForwardChainNode>>, bool, u64) {
     if state_matches_facts(state, goal) {
-        return (Vec::new(), true);
+        return (Vec::new(), true, 0);
     }
 
     let mut results = Vec::new();
     let mut is_in_goal_path = false;
+    let mut total_child_count = 0;
 
     let insatiable_req_models = all_req_models(data)
         .into_iter()
@@ -120,27 +122,30 @@ pub fn forward_chain(
                     if node.is_in_goal_path {
                         is_in_goal_path = true;
                     }
+                    total_child_count += node.child_count + 1;
                 }
 
                 continue;
             }
             observed_states.insert(observed_state);
 
-            let (children, is_goal_path) =
+            let (children, is_goal_path, child_count) =
                 forward_chain(goal, goal_requirements, &next_state, data, observed_states);
             if is_goal_path {
                 is_in_goal_path = true;
             }
+            total_child_count += child_count + 1;
 
             let node = Rc::new(ForwardChainNode {
                 command,
                 children,
                 is_in_goal_path: is_goal_path,
+                child_count,
             });
             observed_states.insert(ObservedState::new(next_state.clone(), Some(node.clone())));
             results.push(node);
         };
     }
 
-    (results, is_in_goal_path)
+    (results, is_in_goal_path, total_child_count)
 }

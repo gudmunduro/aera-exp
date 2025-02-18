@@ -40,7 +40,7 @@ pub fn run_demo() {
     log::debug!("Results of backward chaining");
     log::debug!("{bwd_result:#?}");
 
-    let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
+    let (fwd_result, goal_reachable, child_count) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
     log::debug!("Results of forward chaining");
     log::debug!("Goal reachable: {goal_reachable}");
     log::debug!("{fwd_result:#?}");
@@ -52,55 +52,15 @@ pub fn run_demo() {
 pub fn run_with_tcp() {
     let mut tcp_interface = TcpInterface::connect().expect("Failed to connect to controller with TCP");
     let mut system = System::new();
-    seeds::hand_grab_sphere::setup_hand_grab_sphere_seed(&mut system);
+    seeds::robot_advanced_move::setup_robot_advanced_seed(&mut system);
 
     let mut goals = vec![
         vec![
             Fact {
                 pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("h".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.5), Value::Number(0.0)])),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-        ],
-        vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("b_0".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.5), Value::Number(0.0)])),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-        ],
-        vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::List(vec![])),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-        ],
-        vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("b_1".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.7), Value::Number(0.0)])),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-        ],
-        vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("b_2".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::List(vec![Value::Number(-1.0), Value::Number(0.3), Value::Number(0.0)])),
+                    entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Value(Value::List(vec![Value::UncertainNumber(20.0, 0.1), Value::UncertainNumber(140.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(45.0, 0.1)])),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
@@ -130,20 +90,25 @@ pub fn run_with_tcp() {
             // Perform backward chaining
             let bwd_result = backward_chain(&goal, &system);
             log::debug!("Results of backward chaining");
-            log::debug!("{bwd_result:#?}");
+            for mdl in &bwd_result {
+                log::debug!("{mdl}");
+            }
 
-            log::debug!("b_0 pos");
-            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("b_0", "position")]);
+            log::debug!("co1 pos");
+            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("co1", "approximate_pos")]);
+
+            log::debug!("co1 obj_type");
+            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("co1", "obj_type")]);
 
             log::debug!("h pos");
             log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("h", "position")]);
 
             // Perform forward chaining
-            let (fwd_result, goal_reachable) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
+            let (fwd_result, goal_reachable, child_count) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
             log::debug!("Results of forward chaining");
             log::debug!("Goal reachable: {goal_reachable}");
             log::debug!("{fwd_result:#?}");
-            fwd_result.into_iter().filter(|n| n.is_in_goal_path).next()
+            fwd_result.into_iter().sorted_by_key(|n| n.child_count).filter(|n| n.is_in_goal_path).next()
         };
 
         // Send command to controller
@@ -152,12 +117,16 @@ pub fn run_with_tcp() {
             log::info!("Executed command {:?}", &node.command);
 
             if !node.children.is_empty() {
-                committed_path = Some(node.children.iter().filter(|n| n.is_in_goal_path).next().unwrap().clone());
+                committed_path = Some(node.children.iter().sorted_by_key(|n| n.child_count).filter(|n| n.is_in_goal_path).next().unwrap().clone());
             }
-            else if node.children.is_empty() && node.is_in_goal_path && goals.len() > 1 {
-                log::debug!("Goal achieved, switching to next goal");
-                goals.remove(0);
-                goal = goals[0].clone();
+            else {
+                committed_path = None;
+
+                if node.is_in_goal_path && goals.len() > 1 {
+                    log::debug!("Goal achieved, switching to next goal");
+                    goals.remove(0);
+                    goal = goals[0].clone();
+                }
             }
         }
         else {

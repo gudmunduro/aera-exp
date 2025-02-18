@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use crate::types::value::Value;
 
 pub type Pattern = Vec<PatternItem>;
@@ -28,6 +29,18 @@ impl PatternItem {
 
     pub fn is_binding(&self, binding: &str) -> bool {
         matches!(self, PatternItem::Binding(b) if b == binding)
+    }
+}
+
+impl Display for PatternItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            PatternItem::Any => "*".to_string(),
+            PatternItem::Binding(b) => format!("{b}:"),
+            PatternItem::Value(v) => v.to_string(),
+        })?;
+
+        Ok(())
     }
 }
 
