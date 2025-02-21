@@ -10,7 +10,7 @@ pub mod protobuf {
 fn main() {
     setup_logging();
 
-    runtime::run_with_tcp();
+    runtime::run_demo();
 }
 
 fn setup_logging() {
