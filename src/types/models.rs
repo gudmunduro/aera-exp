@@ -23,7 +23,7 @@ pub struct Mdl {
 impl Mdl {
     pub fn binding_param(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
-            MdlLeftValue::ICst(cst) => cst.pattern.clone(),
+            MdlLeftValue::ICst(cst) => cst.params.clone(),
             MdlLeftValue::Command(cmd) => {
                 if let EntityPatternValue::Binding(b) = &cmd.entity_id {
                     // Add entity id binding as well so it appears first in params
@@ -84,7 +84,7 @@ impl Mdl {
             _ => return None,
         };
         for instantiated_cst in state.instansiated_csts.get(&icst.cst_id)? {
-            match instantiated_cst.matches_param_pattern(&icst.pattern) {
+            match instantiated_cst.match_and_get_bindings_for_icst(&icst) {
                 PatternMatchResult::True(bindings) => {
                     return Some(
                         BoundModel {

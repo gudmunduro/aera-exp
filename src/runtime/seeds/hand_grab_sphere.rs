@@ -36,7 +36,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S0".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -128,7 +128,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S2".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -211,7 +211,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -266,7 +266,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],

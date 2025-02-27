@@ -1,10 +1,11 @@
-use crate::types::cst::InstantiatedCst;
-use crate::types::pattern::{PatternItem};
 use crate::types::{
-    cst::Cst, models::Mdl, EntityVariableKey, MkVal, Time, TimePatternRange,
+    cst::Cst, models::Mdl, EntityVariableKey, Time, TimePatternRange,
     TimePatternValue,
 };
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use itertools::Itertools;
+use crate::types::cst::BoundCst;
 use crate::types::value::Value;
 
 pub struct System {
@@ -45,7 +46,7 @@ impl System {
 #[derive(Clone, Debug)]
 pub struct SystemState {
     pub variables: HashMap<EntityVariableKey, Value>,
-    pub instansiated_csts: HashMap<String, Vec<InstantiatedCst>>,
+    pub instansiated_csts: HashMap<String, Vec<BoundCst>>,
     pub time: SystemTime,
 }
 
@@ -98,34 +99,16 @@ impl SystemTime {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct AssignedMkVal {
-    pub entity_id: String,
-    pub var_name: String,
-    pub pattern_value: PatternItem,
-    pub value: Value,
-}
-
-impl AssignedMkVal {
-    pub fn from_mk_val(
-        mk_val: &MkVal,
-        value: &Value,
-        entity_bindings: &HashMap<String, Value>,
-    ) -> AssignedMkVal {
-        AssignedMkVal {
-            entity_id: mk_val
-                .entity_id
-                .get_id_with_bindings(entity_bindings)
-                .unwrap(),
-            var_name: mk_val.var_name.clone(),
-            pattern_value: mk_val.value.clone(),
-            value: value.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeCommand {
     pub name: String,
     pub entity_id: String,
     pub params: Vec<Value>,
+}
+
+impl Display for RuntimeCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(cmd {} {} {})", self.name, self.entity_id, self.params.iter().map(|v| v.to_string()).join(" "))?;
+
+        Ok(())
+    }
 }

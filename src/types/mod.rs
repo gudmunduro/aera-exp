@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use anyhow::bail;
 use crate::runtime::pattern_matching::bind_values_to_pattern;
 use crate::types::pattern::{Pattern, PatternItem};
-use crate::types::runtime::{AssignedMkVal, RuntimeCommand};
+use crate::types::runtime::RuntimeCommand;
 use crate::types::value::Value;
 
 pub mod runtime;
@@ -57,12 +57,6 @@ impl<T: Clone> Fact<T> {
     }
 }
 
-impl MatchesFact<AssignedMkVal> for Fact<MkVal> {
-    fn matches_fact(&self, fact: &Fact<AssignedMkVal>) -> bool {
-        self.pattern.matches_assigned_mk_val(&fact.pattern)
-    }
-}
-
 impl MatchesFact<MkVal> for Fact<MkVal> {
     fn matches_fact(&self, fact: &Fact<MkVal>) -> bool {
         self.pattern.matches_mk_val(&fact.pattern)
@@ -77,10 +71,6 @@ pub struct MkVal {
 }
 
 impl MkVal {
-    pub fn assign_value(&self, value: &Value, entity_bindings: &HashMap<String, Value>) -> AssignedMkVal {
-        AssignedMkVal::from_mk_val(self, value, entity_bindings)
-    }
-
     /// Checks if two mk.val are equal, assumes bindings are equivalent to wildcard
     pub fn matches_mk_val(&self, mk_val: &MkVal) -> bool {
         let matches_value = match (&self.value, &mk_val.value) {
@@ -90,19 +80,6 @@ impl MkVal {
         let matches_entity = match (&self.entity_id, &mk_val.entity_id) {
             (EntityPatternValue::Binding(_), _) | (_, EntityPatternValue::Binding(_)) => true,
             (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => e1 == e2
-        };
-        matches_entity && self.var_name == mk_val.var_name && matches_value
-    }
-
-    pub fn matches_assigned_mk_val(&self, mk_val: &AssignedMkVal) -> bool {
-        let matches_value = match &self.value {
-            PatternItem::Any => true,
-            PatternItem::Binding(_) => true,
-            PatternItem::Value(value) => &mk_val.value == value
-        };
-        let matches_entity = match &self.entity_id {
-            EntityPatternValue::Binding(_) => true,
-            EntityPatternValue::EntityId(entity_id) => entity_id == &mk_val.entity_id
         };
         matches_entity && self.var_name == mk_val.var_name && matches_value
     }

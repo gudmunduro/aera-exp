@@ -37,7 +37,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_pos".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("hb".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -127,7 +127,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_obj".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("hb".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -229,7 +229,7 @@ pub fn setup_simple_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_pos".to_string(),
-                    pattern: vec![PatternItem::Binding("p".to_string())],
+                    params: vec![PatternItem::Binding("p".to_string())],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -315,7 +315,7 @@ pub fn setup_simple_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "cst_obj".to_string(),
-                    pattern: vec![PatternItem::Binding("p".to_string())],
+                    params: vec![PatternItem::Binding("p".to_string())],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },

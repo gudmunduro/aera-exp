@@ -14,7 +14,7 @@ pub struct ForwardChainNode {
     pub command: RuntimeCommand,
     pub children: Vec<Rc<ForwardChainNode>>,
     pub is_in_goal_path: bool,
-    pub child_count: u64,
+    pub min_goal_depth: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -46,11 +46,17 @@ impl PartialEq for ObservedState {
 
 impl Eq for ObservedState {}
 
-pub fn forward_chain(
+pub fn forward_chain(goal: &Vec<Fact<MkVal>>, goal_requirements: &Vec<IMdl>, system: &System,) -> Vec<RuntimeCommand> {
+    let (forward_chain_graph, _, _) = forward_chain_rec(goal, goal_requirements, &system.current_state, system, &mut HashSet::new());
+    let path = commit_to_path(&forward_chain_graph);
+    path
+}
+
+fn forward_chain_rec(
     goal: &Vec<Fact<MkVal>>,
     goal_requirements: &Vec<IMdl>,
     state: &SystemState,
-    data: &System,
+    system: &System,
     observed_states: &mut HashSet<ObservedState>,
 ) -> (Vec<Rc<ForwardChainNode>>, bool, u64) {
     if state_matches_facts(state, goal) {
@@ -59,9 +65,9 @@ pub fn forward_chain(
 
     let mut results = Vec::new();
     let mut is_in_goal_path = false;
-    let mut total_child_count = 0;
+    let mut node_min_goal_depth = u64::MAX;
 
-    let insatiable_req_models = all_req_models(data)
+    let insatiable_req_models = all_req_models(system)
         .into_iter()
         .filter_map(|m| m.try_instantiate_with_icst(&state))
         .collect_vec();
@@ -82,7 +88,7 @@ pub fn forward_chain(
             // Fill in bindings that we got from backward chaining but not forward chaining
             let merged_imdl = fwd_chained_imdl.merge_with(casual_model.clone());
             let mut fwd_chained_model = merged_imdl
-                .instantiate(&req_model.bindings, data);
+                .instantiate(&req_model.bindings, system);
             fwd_chained_model.compute_forward_bindings();
 
             final_casual_models.push(fwd_chained_model);
@@ -107,45 +113,74 @@ pub fn forward_chain(
             let next_state = casual_model.predict_state_change(
                 &state,
                 &other_casual_models,
-                data,
+                system,
             );
             // Don't look at next state if prediction changes nothing or if we have already seen this state
             let observed_state = ObservedState::new(next_state.clone(), None);
-            if state == &next_state || observed_states.contains(&observed_state) {
+            if state == &next_state {
+                continue;
+            }
+            if observed_states.contains(&observed_state) {
                 // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
                 // If it has not been computed, then we have most likely found a cycle in the graph
                 if let Some(node) = observed_states
                         .get(&observed_state)
                         .map(|s| s.node.as_ref())
                         .flatten() {
-                    results.push(node.clone());
+                    results.push(Rc::new(ForwardChainNode {
+                        command,
+                        children: node.children.clone(),
+                        is_in_goal_path: node.is_in_goal_path,
+                        min_goal_depth: node.min_goal_depth,
+                    }));
                     if node.is_in_goal_path {
+                        node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth.saturating_add(1));
                         is_in_goal_path = true;
                     }
-                    total_child_count += node.child_count + 1;
                 }
 
                 continue;
             }
             observed_states.insert(observed_state);
 
-            let (children, is_goal_path, child_count) =
-                forward_chain(goal, goal_requirements, &next_state, data, observed_states);
+            let (children, is_goal_path, min_goal_depth) =
+                forward_chain_rec(goal, goal_requirements, &next_state, system, observed_states);
             if is_goal_path {
+                node_min_goal_depth = node_min_goal_depth.min(min_goal_depth.saturating_add(1));
                 is_in_goal_path = true;
             }
-            total_child_count += child_count + 1;
 
             let node = Rc::new(ForwardChainNode {
                 command,
                 children,
                 is_in_goal_path: is_goal_path,
-                child_count,
+                min_goal_depth: min_goal_depth.saturating_add(1),
             });
-            observed_states.insert(ObservedState::new(next_state.clone(), Some(node.clone())));
+
+            let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()));
+            observed_states.remove(&new_observed_state);
+            observed_states.insert(new_observed_state);
             results.push(node);
         };
     }
 
-    (results, is_in_goal_path, total_child_count)
+    (results, is_in_goal_path, node_min_goal_depth)
+}
+
+fn commit_to_path(forward_chain_result: &Vec<Rc<ForwardChainNode>>) -> Vec<RuntimeCommand> {
+    let Some(best_path_node) = forward_chain_result.iter()
+        .sorted_by_key(|n| n.min_goal_depth)
+        .filter(|n| n.is_in_goal_path)
+        .next() else {
+        return Vec::new();
+    };
+
+    if best_path_node.children.is_empty() {
+        vec![best_path_node.command.clone()]
+    } else {
+        let mut path = commit_to_path(&best_path_node.children);
+        path.insert(0, best_path_node.command.clone());
+        path
+    }
+
 }

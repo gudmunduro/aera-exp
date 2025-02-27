@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, compare_imdls, compare_patterns};
+use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, compare_imdls};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, IMdl, Mdl};
 use crate::types::pattern::PatternItem;
@@ -8,13 +8,16 @@ use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
+const MAX_DEPTH: usize = 20;
+
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let mut instantiable_cas_mdl = Vec::new();
 
     let req_models = all_req_models(data);
     for m_req in &req_models {
         if let Some(bound_m_req) = m_req.try_instantiate_with_icst(&data.current_state) {
-            let imdl = m_req.right.pattern.as_imdl();
+            let imdl = m_req.right.pattern.as_filled_in_imdl(&bound_m_req.bindings);
+            log::debug!("Instantiable imdl {imdl:?}");
             instantiable_cas_mdl.push(imdl.clone());
         }
     }
@@ -27,6 +30,7 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
         &casual_models,
         data,
         &mut observed_goals,
+        0,
     );
     goal_req_models
 }
@@ -38,7 +42,12 @@ fn get_goal_requirements_for_goal(
     casual_models: &Vec<Mdl>,
     data: &System,
     observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
+    depth: usize,
 ) -> (Vec<IMdl>, bool) {
+    if depth >= MAX_DEPTH {
+        return (Vec::new(), false);
+    }
+
     let mut reached_current_state = false;
     let mut goal_requirements: Vec<IMdl> = Vec::new();
 
@@ -133,6 +142,7 @@ fn get_goal_requirements_for_goal(
                         casual_models,
                         data,
                         observed_goals,
+                        depth + 1,
                     );
 
                 // Prune dead ends from backward chaining tree (paths that cannot be used to reach the current state)
@@ -287,9 +297,4 @@ fn insert_bindings_for_rhs_from_goal(
     }
 
     result
-}
-
-pub fn are_shared_bindings_equal(b1: &HashMap<String, Value>, b2: &HashMap<String, Value>) -> bool {
-    let mut shared = b1.keys().collect::<HashSet<&String>>().intersection(&b2.keys().collect::<HashSet<&String>>()).cloned().collect_vec();
-    shared.iter().all(|k| b1[*k] == b2[*k])
 }

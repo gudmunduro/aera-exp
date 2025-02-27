@@ -39,7 +39,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S0".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
@@ -150,7 +150,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S1".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("p".to_string()),
@@ -238,7 +238,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("p".to_string()),
@@ -296,7 +296,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
-                    pattern: vec![
+                    params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("p".to_string()),

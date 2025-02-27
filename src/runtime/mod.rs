@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
-use crate::types::runtime::{System, SystemTime};
+use crate::types::runtime::{RuntimeCommand, System, SystemTime};
 use crate::runtime::pattern_matching::{compute_instantiated_states};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
@@ -22,7 +22,7 @@ pub fn run_demo() {
 
     log::debug!("Instantiated composite states");
     for state in system.current_state.instansiated_csts.values().flatten() {
-        log::debug!("State: {}", state.cst_id);
+        log::debug!("State: {}", state.cst.cst_id);
     }
 
     let goal = vec![
@@ -38,12 +38,14 @@ pub fn run_demo() {
 
     let bwd_result = backward_chain(&goal, &system);
     log::debug!("Results of backward chaining");
-    log::debug!("{bwd_result:#?}");
+    for mdl in &bwd_result {
+        log::debug!("{mdl}");
+    }
 
-    let (fwd_result, goal_reachable, child_count) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
+    let fwd_result = forward_chain(&goal, &bwd_result, &system);
     log::debug!("Results of forward chaining");
-    log::debug!("Goal reachable: {goal_reachable}");
-    log::debug!("{fwd_result:#?}");
+    log::debug!("Goal reachable: {}", !fwd_result.is_empty());
+    log::debug!("{fwd_result:?}");
 
     advance_time_step(&mut system);
 }
@@ -68,7 +70,7 @@ pub fn run_with_tcp() {
     ];
 
     let mut goal = goals[0].clone();
-    let mut committed_path: Option<Rc<ForwardChainNode>> = None;
+    let mut committed_path: Option<Vec<RuntimeCommand>> = None;
 
     loop {
         advance_time_step(&mut system);
@@ -81,10 +83,10 @@ pub fn run_with_tcp() {
 
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {
-            log::debug!("State: {}", state.cst_id);
+            log::debug!("State: {}", state.cst.cst_id);
         }
 
-        let node = if let Some(committed) = committed_path.as_ref() {
+        let path = if let Some(committed) = committed_path.as_ref() {
             Some(committed.clone())
         } else {
             // Perform backward chaining
@@ -104,29 +106,34 @@ pub fn run_with_tcp() {
             log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("h", "position")]);
 
             // Perform forward chaining
-            let (fwd_result, goal_reachable, child_count) = forward_chain(&goal, &bwd_result, &system.current_state, &system, &mut HashSet::new());
+            let path = forward_chain(&goal, &bwd_result, &system);
             log::debug!("Results of forward chaining");
-            log::debug!("Goal reachable: {goal_reachable}");
-            log::debug!("{fwd_result:#?}");
-            fwd_result.into_iter().sorted_by_key(|n| n.child_count).filter(|n| n.is_in_goal_path).next()
+            log::debug!("Goal reachable: {}", !path.is_empty());
+            log::debug!("{path:?}");
+
+            if !path.is_empty() {
+                Some(path)
+            }
+            else {
+                None
+            }
         };
 
         // Send command to controller
-        if let Some(node) = node {
-            tcp_interface.execute_command(&node.command).expect("Failed to execute command with TCP");
-            log::info!("Executed command {:?}", &node.command);
+        if let Some(mut path) = path {
+            tcp_interface.execute_command(&path[0]).expect("Failed to execute command with TCP");
+            log::info!("Executed command {:?}", &path[0]);
 
-            if !node.children.is_empty() {
-                committed_path = Some(node.children.iter().sorted_by_key(|n| n.child_count).filter(|n| n.is_in_goal_path).next().unwrap().clone());
+            if !path.is_empty() {
+                path.remove(0);
+                committed_path = Some(path);
             }
             else {
                 committed_path = None;
 
-                if node.is_in_goal_path && goals.len() > 1 {
-                    log::debug!("Goal achieved, switching to next goal");
-                    goals.remove(0);
-                    goal = goals[0].clone();
-                }
+                log::debug!("Goal achieved, switching to next goal");
+                goals.remove(0);
+                goal = goals[0].clone();
             }
         }
         else {

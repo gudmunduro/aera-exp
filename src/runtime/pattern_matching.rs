@@ -1,4 +1,3 @@
-use crate::types::cst::InstantiatedCst;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::{System, SystemState};
@@ -6,6 +5,7 @@ use crate::types::value::Value;
 use crate::types::{Fact, MkVal};
 use itertools::Itertools;
 use std::collections::HashMap;
+use crate::types::cst::BoundCst;
 
 pub enum PatternMatchResult {
     True(HashMap<String, Value>),
@@ -15,12 +15,12 @@ pub enum PatternMatchResult {
 pub fn compute_instantiated_states(
     system: &System,
     state: &SystemState,
-) -> HashMap<String, Vec<InstantiatedCst>> {
+) -> HashMap<String, Vec<BoundCst>> {
     system
         .csts
         .iter()
         .map(|(id, cst)| {
-            let csts = InstantiatedCst::try_instantiate_from_current_state(cst, state, system);
+            let csts = BoundCst::try_instantiate_from_state(cst, state, system);
 
             (id.clone(), csts)
         })
@@ -79,7 +79,7 @@ pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, Valu
     pattern
         .iter()
         .filter_map(|p| match p {
-            PatternItem::Any => panic!("Wildcard in parma pattern is currently not supported"),
+            PatternItem::Any => panic!("Wildcard in parma pattern is not supported"),
             PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
             PatternItem::Value(v) => Some(v.clone()),
         })
