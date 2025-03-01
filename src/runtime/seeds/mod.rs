@@ -171,7 +171,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                 "np".to_string(),
                 Function::Add(
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(Value::List(
+                    Box::new(Function::Value(PatternItem::Value(Value::Vec(
                         vec![Value::Number(0.0), Value::Number(1.0)],
                     )))),
                 ),
@@ -181,7 +181,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                 "p".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
-                    Box::new(Function::Value(PatternItem::Value(Value::List(
+                    Box::new(Function::Value(PatternItem::Value(Value::Vec(
                         vec![Value::Number(0.0), Value::Number(1.0)],
                     )))),
                 ),
@@ -193,11 +193,11 @@ pub fn setup_bindings_seed(system: &mut System) {
 
     system.current_state.variables.insert(
         EntityVariableKey::new("h", "pos"),
-        Value::List(vec![Value::Number(1.0), Value::Number(1.0)]),
+        Value::Vec(vec![Value::Number(1.0), Value::Number(1.0)]),
     );
     system.current_state.variables.insert(
         EntityVariableKey::new("o", "pos"),
-        Value::List(vec![Value::Number(5.0), Value::Number(5.0)]),
+        Value::Vec(vec![Value::Number(5.0), Value::Number(5.0)]),
     );
 }
 

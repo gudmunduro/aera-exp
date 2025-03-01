@@ -115,7 +115,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
                         var_name: "approximate_pos".to_string(),
-                        value: PatternItem::Binding("p".to_string()),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -123,7 +123,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("h".to_string()),
                         var_name: "position".to_string(),
-                        value: PatternItem::Binding("p".to_string()),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Binding("pw".to_string())]),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -131,7 +131,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "holding".to_string(),
-                        value: PatternItem::Value(Value::List(vec![])),
+                        value: PatternItem::Value(Value::Vec(vec![])),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -153,7 +153,10 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("co".to_string()),
-                        PatternItem::Binding("p".to_string()),
+                        PatternItem::Binding("px".to_string()),
+                        PatternItem::Binding("py".to_string()),
+                        PatternItem::Binding("pz".to_string()),
+                        PatternItem::Binding("pw".to_string()),
                     ],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -190,7 +193,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Binding("co".to_string()),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("co".to_string())]),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -219,7 +222,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("h".to_string()),
                         var_name: "holding".to_string(),
-                        value: PatternItem::Binding("co".to_string()),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("co".to_string())]),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -277,7 +280,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::List(vec![])),
+                    value: PatternItem::Value(Value::Vec(vec![])),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -354,5 +357,5 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
         },
     );
 
-    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::List(vec![Value::Number(0.0), Value::Number(0.0), Value::Number(0.0), Value::Number(0.0)]));
+    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::Number(0.0), Value::Number(0.0), Value::Number(0.0), Value::Number(0.0)]));
 }

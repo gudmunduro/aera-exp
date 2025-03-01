@@ -140,7 +140,7 @@ fn values_to_le_bytes(values: &[Value], comm_ids: &CommIds) -> Vec<u8> {
         Value::UncertainNumber(m, _) => m.to_le_bytes().to_vec(),
         Value::String(v) => v.as_bytes().to_vec(),
         Value::EntityId(e) => comm_ids.get_id(e).to_le_bytes().to_vec(),
-        Value::List(list) => values_to_le_bytes(list, comm_ids),
+        Value::Vec(list) => values_to_le_bytes(list, comm_ids),
     }).collect()
 }
 
@@ -148,15 +148,23 @@ fn decode_runtime_value(proto_variable: &ProtoVariable, comm_ids: &CommIds) -> V
     let meta_data = proto_variable.meta_data.as_ref().unwrap();
     if meta_data.data_type == DataType::Double as i32 {
         if meta_data.dimensions[0] > 1 {
-            Value::List(proto_variable.data.chunks(8).map(|d| Value::Number(le_bytes_to_f64(d))).collect())
+            Value::Vec(proto_variable.data.chunks(8).map(|d| Value::Number(le_bytes_to_f64(d))).collect())
         }
         else {
             Value::Number(le_bytes_to_f64(&proto_variable.data))
         }
     }
+    else if meta_data.data_type == DataType::UncertainDouble as i32 {
+        if meta_data.dimensions[0] > 1 {
+            Value::Vec(proto_variable.data.chunks(16).map(|d| Value::UncertainNumber(le_bytes_to_f64(&d[..8]), le_bytes_to_f64(&d[8..]))).collect())
+        }
+        else {
+            Value::UncertainNumber(le_bytes_to_f64(&proto_variable.data[..8]), le_bytes_to_f64(&proto_variable.data[8..]))
+        }
+    }
     else if meta_data.data_type == DataType::Int64 as i32 {
         if meta_data.dimensions[0] > 1 {
-            Value::List(proto_variable.data.chunks(8).map(|d| Value::Number(le_bytes_to_i64(d) as f64)).collect())
+            Value::Vec(proto_variable.data.chunks(8).map(|d| Value::Number(le_bytes_to_i64(d) as f64)).collect())
         }
         else {
             Value::Number(le_bytes_to_i64(&proto_variable.data) as f64)
@@ -165,10 +173,10 @@ fn decode_runtime_value(proto_variable: &ProtoVariable, comm_ids: &CommIds) -> V
     else if meta_data.data_type == DataType::CommunicationId as i32 {
         let id = le_bytes_to_i64(&proto_variable.data) as i32;
         if id != -1 {
-            Value::EntityId(comm_ids.get_name(id).to_owned())
+            Value::Vec(vec![Value::EntityId(comm_ids.get_name(id).to_owned())])
         }
         else {
-            Value::List(vec![])
+            Value::Vec(vec![])
         }
     }
     else if meta_data.data_type == DataType::String as i32 {

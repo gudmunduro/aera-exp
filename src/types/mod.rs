@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use anyhow::bail;
-use crate::runtime::pattern_matching::bind_values_to_pattern;
-use crate::types::pattern::{Pattern, PatternItem};
+use itertools::Itertools;
+use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items};
+use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;
 use crate::types::value::Value;
 
@@ -35,6 +36,15 @@ impl Command {
             entity_id: self.entity_id.get_id_with_bindings(bindings).unwrap(),
             params,
         })
+    }
+
+    pub fn get_bindings(&self) -> Vec<String> {
+        if let EntityPatternValue::Binding(b) = &self.entity_id {
+            // Add entity id binding as well so it appears first in params
+            [vec![b.clone()], bindings_in_pattern(&self.params)].concat()
+        } else {
+            bindings_in_pattern(&self.params)
+        }
     }
 }
 
@@ -73,15 +83,11 @@ pub struct MkVal {
 impl MkVal {
     /// Checks if two mk.val are equal, assumes bindings are equivalent to wildcard
     pub fn matches_mk_val(&self, mk_val: &MkVal) -> bool {
-        let matches_value = match (&self.value, &mk_val.value) {
-            (PatternItem::Any | PatternItem::Binding(_), _) | (_, PatternItem::Any | PatternItem::Binding(_)) => true,
-            (PatternItem::Value(v1), PatternItem::Value(v2)) => v1 == v2
-        };
         let matches_entity = match (&self.entity_id, &mk_val.entity_id) {
             (EntityPatternValue::Binding(_), _) | (_, EntityPatternValue::Binding(_)) => true,
             (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => e1 == e2
         };
-        matches_entity && self.var_name == mk_val.var_name && matches_value
+        matches_entity && self.var_name == mk_val.var_name && compare_pattern_items(&self.value, &mk_val.value, true)
     }
 
     pub fn entity_key(&self, bindings: &HashMap<String, Value>) -> Option<EntityVariableKey> {
@@ -89,6 +95,15 @@ impl MkVal {
             entity_id: self.entity_id.get_id_with_bindings(bindings)?,
             var_name: self.var_name.clone(),
         })
+    }
+
+    pub fn get_bindings(&self) -> Vec<String> {
+        if let EntityPatternValue::Binding(b) = &self.entity_id {
+            // Add entity id binding as well so it appears first in params
+            [vec![b.clone()], self.value.get_bindings()].concat()
+        } else {
+            self.value.get_bindings()
+        }
     }
 }
 

@@ -247,7 +247,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::List(vec![])),
+                    value: PatternItem::Value(Value::Vec(vec![])),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },

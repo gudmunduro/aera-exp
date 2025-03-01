@@ -1,9 +1,10 @@
-use crate::runtime::pattern_matching::{compare_patterns, extract_bindings_from_pattern, PatternMatchResult};
+use crate::runtime::pattern_matching::{compare_patterns, extract_bindings_from_patterns, pattern_item_matches_value_with_bindings, PatternMatchResult};
 use crate::types::pattern::{Pattern};
 use crate::types::runtime::{System, SystemState};
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use crate::types::value::Value;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -28,10 +29,7 @@ impl Cst {
         let fact_bindings = self
             .facts
             .iter()
-            .filter_map(|fact| match &fact.pattern.value {
-                PatternItem::Binding(name) => Some(name.clone()),
-                _ => None,
-            })
+            .flat_map(|fact| fact.pattern.value.get_bindings())
             .unique();
 
         entity_bindings.chain(fact_bindings).collect()
@@ -41,14 +39,7 @@ impl Cst {
         let mut facts = self.facts.clone();
 
         for fact in &mut facts {
-            match &fact.pattern.value {
-                PatternItem::Binding(b) => {
-                    if let Some(binding_val) = bindings.get(b) {
-                        fact.pattern.value = PatternItem::Value(binding_val.clone());
-                    }
-                }
-                _ => {}
-            }
+            fact.pattern.value.insert_binding_values(bindings);
             match &fact.pattern.entity_id {
                 EntityPatternValue::Binding(b) => {
                     if let Some(binding_val) = bindings.get(b) {
@@ -112,20 +103,16 @@ impl ICst {
             .binding_params()
             .into_iter()
             .zip(&self.params)
+            .map(|(b, v)| (b, v.to_owned()))
             .collect::<HashMap<_, _>>();
         cst.facts = cst
             .facts
             .into_iter()
             .map(|mut f| {
-                match &f.pattern.value {
-                    PatternItem::Binding(name) => {
-                        f.pattern.value = binding_params[name].clone();
-                    }
-                    _ => {}
-                }
+                f.pattern.value.insert_pattern_binding_values(&binding_params);
                 match &f.pattern.entity_id {
                     EntityPatternValue::Binding(name) => {
-                        f.pattern.entity_id = match binding_params[name] {
+                        f.pattern.entity_id = match &binding_params[name] {
                             PatternItem::Binding(b) => EntityPatternValue::Binding(b.clone()),
                             PatternItem::Value(Value::EntityId(id)) => EntityPatternValue::EntityId(id.clone()),
                             _ => f.pattern.entity_id
@@ -145,12 +132,22 @@ impl ICst {
                 match &binding_params[&e.binding] {
                     PatternItem::Binding(name) => Some(EntityDeclaration { binding: name.to_owned(), ..e }),
                     PatternItem::Value(_) => None,
+                    // Possibly should panic, this should never happen
+                    PatternItem::Vec(_) => None,
                     PatternItem::Any => panic!("Wildcard not allowed in param pattern")
                 }
             })
             .collect();
 
         cst
+    }
+}
+
+impl Display for ICst {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(icst {} {})", self.cst_id, self.params.iter().map(|p| p.to_string()).join(" "))?;
+
+        Ok(())
     }
 }
 
@@ -178,25 +175,12 @@ impl BoundCst {
                     continue 'entity_loop;
                 };
 
-                match &fact.pattern.value {
-                    PatternItem::Any => {}
-                    PatternItem::Binding(b) => {
-                        if let Some(bound_val) = binding_map.get(b) {
-                            // If value was already bound before (with another variable), compare to that var
-                            if bound_val != current_value {
-                                continue 'entity_loop;
-                            }
-                        }
-                        else {
-                            // Add value to the binding map if we have not seen this
-                            binding_map.insert(b.clone(), current_value.clone());
-                        }
+                match pattern_item_matches_value_with_bindings(&fact.pattern.value, &current_value, binding_map) {
+                    PatternMatchResult::True(updated_bindings) => {
+                        binding_map = updated_bindings;
                     }
-                    PatternItem::Value(v1) => {
-                        // Don't instantiate model if value doesn't match current state
-                        if !state.variables.get(&fact.pattern.entity_key(&entity_bindings).unwrap()).map(|v2| v1 == v2).unwrap_or(false) {
-                            continue;
-                        }
+                    PatternMatchResult::False => {
+                        continue 'entity_loop;
                     }
                 }
             }
@@ -234,7 +218,7 @@ impl BoundCst {
         let self_icst = self.icst_for_cst();
 
         if icst.cst_id == self_icst.cst_id && compare_patterns(&self_icst.params, &icst.params, true, true) {
-            let bindings = extract_bindings_from_pattern(&icst.params, &self_icst.params);
+            let bindings = extract_bindings_from_patterns(&icst.params, &self_icst.params);
             PatternMatchResult::True(bindings)
         }
         else {

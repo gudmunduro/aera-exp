@@ -21,7 +21,7 @@ impl Function {
             Function::Sub(v1, v2) => Some(v1.evaluate(bindings)? - v2.evaluate(bindings)?),
             Function::Mul(v1, v2) => Some(v1.evaluate(bindings)? * v2.evaluate(bindings)?),
             Function::Div(v1, v2) => Some(v1.evaluate(bindings)? / v2.evaluate(bindings)?),
-            Function::List(items) => Some(Value::List(
+            Function::List(items) => Some(Value::Vec(
                 items.iter().filter_map(|f| f.evaluate(bindings)).collect(),
             )),
         }
@@ -29,8 +29,7 @@ impl Function {
 
     pub fn binding_params(&self) -> Vec<String> {
         match self {
-            Function::Value(PatternItem::Binding(b)) => vec![b.clone()],
-            Function::Value(_) => vec![],
+            Function::Value(p) => p.get_bindings(),
             Function::Add(v1, v2)
             | Function::Sub(v1, v2)
             | Function::Mul(v1, v2)

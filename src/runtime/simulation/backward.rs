@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, compare_imdls};
+use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, IMdl, Mdl};
 use crate::types::pattern::PatternItem;
@@ -6,7 +6,7 @@ use crate::types::runtime::System;
 use crate::types::value::Value;
 use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 const MAX_DEPTH: usize = 20;
 
@@ -17,7 +17,6 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     for m_req in &req_models {
         if let Some(bound_m_req) = m_req.try_instantiate_with_icst(&data.current_state) {
             let imdl = m_req.right.pattern.as_filled_in_imdl(&bound_m_req.bindings);
-            log::debug!("Instantiable imdl {imdl:?}");
             instantiable_cas_mdl.push(imdl.clone());
         }
     }
@@ -201,14 +200,17 @@ fn create_variations_of_sub_goal(
                 .map(|b| {
                     let res = goal
                         .iter()
-                        .filter(|f| f.pattern.value.is_binding(b))
-                        .filter_map(|f| {
-                            system
+                        .filter(|f| f.pattern.value.contains_binding(b))
+                        .flat_map(|f| {
+                            let Some(sys_value) = system
                                 .current_state
                                 .variables
-                                .get(&f.pattern.entity_key(&entity_bindings).unwrap())
+                                .get(&f.pattern.entity_key(&entity_bindings).unwrap()) else {
+                                return Vec::new();
+                            };
+
+                            extract_duplicate_bindings_from_pattern(&f.pattern.value.pattern(), &vec![PatternItem::Value(sys_value.clone())])
                         })
-                        .map(|v| (b.clone(), v.clone()))
                         .collect_vec();
                     res
                 })
@@ -230,12 +232,7 @@ fn create_variations_of_sub_goal(
 /// Ignores bindings that don't exist in the binding map (they will stay undbound)
 fn insert_bindings_into_facts(facts: &mut Vec<Fact<MkVal>>, bindings: &HashMap<String, Value>) {
     for fact in facts {
-        match &fact.pattern.value {
-            PatternItem::Binding(b) if bindings.contains_key(b) => {
-                fact.pattern.value = PatternItem::Value(bindings[b].clone());
-            }
-            _ => {}
-        }
+        &fact.pattern.value.insert_binding_values(bindings);
         match &fact.pattern.entity_id {
             EntityPatternValue::Binding(b) if bindings.contains_key(b) && matches!(bindings[b], Value::EntityId(_)) => {
                 fact.pattern.entity_id =
@@ -268,17 +265,8 @@ fn insert_bindings_for_rhs_from_goal(
         }
         let mut casual_model = casual_model.clone();
 
-        if let PatternItem::Binding(binding) = &mk_val.value {
-            let goal_value = goal_fact.pattern.value.clone();
-
-            // Only add binding if goal value is a real value
-            match goal_value {
-                PatternItem::Value(value) => {
-                    casual_model.bindings.insert(binding.to_owned(), value);
-                }
-                _ => {}
-            }
-        }
+        let mk_val_bindings = extract_bindings_from_patterns(&mk_val.value.pattern(), &goal_fact.pattern.value.pattern());
+        casual_model.bindings.extend(mk_val_bindings);
 
         if let EntityPatternValue::Binding(binding) = &mk_val.entity_id {
             // Same with entity id

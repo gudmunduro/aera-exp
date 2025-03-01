@@ -1,7 +1,7 @@
-use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_instantiated_states, extract_bindings_from_pattern, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_instantiated_states, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
-use crate::types::pattern::Pattern;
+use crate::types::pattern::{bindings_in_pattern, flatten_pattern_item_vecs, flatten_pattern_vecs, Pattern};
 use crate::types::runtime::{System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
@@ -23,52 +23,25 @@ pub struct Mdl {
 impl Mdl {
     pub fn binding_param(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
-            MdlLeftValue::ICst(cst) => cst.params.clone(),
+            MdlLeftValue::ICst(cst) => bindings_in_pattern(&cst.params),
             MdlLeftValue::Command(cmd) => {
-                if let EntityPatternValue::Binding(b) = &cmd.entity_id {
-                    // Add entity id binding as well so it appears first in params
-                    vec![PatternItem::Binding(b.clone())]
-                        .into_iter()
-                        .chain(cmd.params.clone())
-                        .collect_vec()
-                } else {
-                    cmd.params.clone()
-                }
+                cmd.get_bindings()
             }
             MdlLeftValue::MkVal(mk_val) => {
-                if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
-                    // Add entity id binding as well so it appears first in params
-                    vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
-                } else {
-                    vec![mk_val.value.clone()]
-                }
+                mk_val.get_bindings()
             }
         };
         let params_in_computed = self
             .forward_computed
             .iter()
             .flat_map(|(_, f)| f.binding_params());
-        // TODO: Temporary hack to make grab command work
         let right_params = match &self.right.pattern {
-            MdlRightValue::IMdl(imdl) => imdl.params.clone(),
-            MdlRightValue::MkVal(mk_val) => {
-                if let EntityPatternValue::Binding(b) = &mk_val.entity_id {
-                    vec![PatternItem::Binding(b.clone()), mk_val.value.clone()]
-                } else {
-                    vec![mk_val.value.clone()]
-                }
-            },
-        }.into_iter().filter_map(|pattern| match &pattern {
-            PatternItem::Binding(name) => Some(name.clone()),
-            _ => None,
-        });
+            MdlRightValue::IMdl(imdl) => bindings_in_pattern(&imdl.params),
+            MdlRightValue::MkVal(mk_val) => mk_val.get_bindings(),
+        };
 
         left_pattern
             .into_iter()
-            .filter_map(|pattern| match &pattern {
-                PatternItem::Binding(name) => Some(name.clone()),
-                _ => None,
-            })
             .chain(params_in_computed.into_iter())
             .chain(right_params)
             // Bindings assigned to function results cannot be passes as parameters
@@ -104,7 +77,7 @@ impl Mdl {
     /// Get a bound version of this model from rhs imdl
     pub fn backward_chain_known_bindings_from_imdl(&self, imdl: &IMdl) -> BoundModel {
         let self_imdl = self.right.pattern.as_imdl();
-        let bindings = extract_bindings_from_pattern(&self_imdl.params, &imdl.params);
+        let bindings = extract_bindings_from_patterns(&self_imdl.params, &imdl.params);
 
         BoundModel {
             model: self.clone(),

@@ -82,6 +82,7 @@ pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, Valu
             PatternItem::Any => panic!("Wildcard in parma pattern is not supported"),
             PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
             PatternItem::Value(v) => Some(v.clone()),
+            PatternItem::Vec(v) => Some(Value::Vec(bind_values_to_pattern(v, bindings))),
         })
         .collect()
 }
@@ -117,13 +118,31 @@ pub fn compare_patterns(
         return false;
     }
 
-    pattern1.iter().zip(pattern2).all(|(p1, p2)| match p1 {
+    pattern1.iter().zip(pattern2).all(|(p1, p2)| compare_pattern_items(p1, p2, allow_unbound))
+}
+
+pub fn compare_pattern_items(
+    pattern_item1: &PatternItem,
+    pattern_item2: &PatternItem,
+    allow_unbound: bool,
+) -> bool {
+    match pattern_item1 {
         PatternItem::Any | PatternItem::Binding(_) => allow_unbound,
-        PatternItem::Value(v1) => match p2 {
+        PatternItem::Value(v1) => match pattern_item2 {
             PatternItem::Any | PatternItem::Binding(_) => allow_unbound,
             PatternItem::Value(v2) => v1 == v2,
+            PatternItem::Vec(v2) => match v1 {
+                Value::Vec(v1) => v1 == v2,
+                _ => false,
+            },
         },
-    })
+        PatternItem::Vec(v1) => match pattern_item2 {
+            PatternItem::Any | PatternItem::Binding(_) => allow_unbound,
+            PatternItem::Vec(v2) => compare_patterns(v1, v2, allow_unbound, false),
+            PatternItem::Value(Value::Vec(v2)) => v2 == v1,
+            PatternItem::Value(_) => false,
+        }
+    }
 }
 
 pub fn compare_imdls(
@@ -163,18 +182,25 @@ pub fn combine_pattern_bindings(mut pattern1: Pattern, mut pattern2: Pattern) ->
         .into_iter()
         .zip(pattern2)
         .map(|(p1, p2)| match (p1, p2) {
+            // Both are vec patterns
+            (PatternItem::Vec(p1), PatternItem::Vec(p2)) => PatternItem::Vec(combine_pattern_bindings(p1, p2)),
+            // Both are vec but left is value
+            (PatternItem::Value(Value::Vec(v1)), PatternItem::Vec(p2)) => PatternItem::Vec(combine_pattern_bindings(value_vec_to_pattern_vec(v1), p2)),
+            // Both are vec but right is value
+            (PatternItem::Vec(p1), PatternItem::Value(Value::Vec(v2))) => PatternItem::Vec(combine_pattern_bindings(p1, value_vec_to_pattern_vec(v2))),
             // Only left is a value
             (
-                vp @ PatternItem::Value(_),
-                PatternItem::Binding(_) | PatternItem::Any | PatternItem::Value(_),
+                vp @ (PatternItem::Value(_) | PatternItem::Vec(_)),
+                PatternItem::Binding(_) | PatternItem::Any | PatternItem::Value(_) | PatternItem::Vec(_),
             ) => vp,
             // Only right is a value
-            (PatternItem::Binding(_) | PatternItem::Any, vp @ PatternItem::Value(_)) => vp,
+            (PatternItem::Binding(_) | PatternItem::Any, vp @ (PatternItem::Value(_) | PatternItem::Vec(_))) => vp,
             // Neither is a value, but at least one side is a binding (prefer left)
             (bp @ PatternItem::Binding(_), PatternItem::Any | PatternItem::Binding(_))
             | (PatternItem::Any, bp @ PatternItem::Binding(_)) => bp,
             // Both are wildcard
             (PatternItem::Any, PatternItem::Any) => PatternItem::Any,
+
         })
         .collect()
 }
@@ -198,16 +224,116 @@ pub fn fill_in_pattern_with_bindings(
         .collect()
 }
 
-pub fn extract_bindings_from_pattern(
+pub fn extract_bindings_from_patterns(
     pattern_with_bindings: &Pattern,
     pattern_with_values: &Pattern,
 ) -> HashMap<String, Value> {
     pattern_with_bindings
         .iter()
         .zip(pattern_with_values)
-        .filter_map(|(b, v)| match (b, v) {
-            (PatternItem::Binding(b), PatternItem::Value(v)) => Some((b.to_owned(), v.to_owned())),
-            _ => None,
+        .flat_map(|(b, v)| match (b, v) {
+            (PatternItem::Binding(b), PatternItem::Value(v)) => vec![(b.to_owned(), v.to_owned())],
+            (PatternItem::Binding(b), PatternItem::Vec(v)) => {
+                if let Some(vec) = pattern_vec_to_value_vec(v.clone()) {
+                    vec![(b.to_owned(), Value::Vec(vec))]
+                }
+                else {
+                    log::error!("Could not extract bindings from partially bound vec");
+                    Vec::new()
+                }
+            },
+            (PatternItem::Vec(bv), PatternItem::Vec(vv)) => extract_duplicate_bindings_from_pattern(bv, vv),
+            (PatternItem::Vec(bv), PatternItem::Value(Value::Vec(vv))) => extract_duplicate_bindings_from_pattern_and_values(bv, vv),
+            _ => Vec::new(),
         })
         .collect()
+}
+
+/// Extract all bindings from pattern but allow duplicate (one binding with multiple values)
+pub fn extract_duplicate_bindings_from_pattern(
+    pattern_with_bindings: &Pattern,
+    pattern_with_values: &Pattern,
+) -> Vec<(String, Value)> {
+    pattern_with_bindings
+        .iter()
+        .zip(pattern_with_values)
+        .flat_map(|(b, v)| match (b, v) {
+            (PatternItem::Binding(b), PatternItem::Value(v)) => vec![(b.to_owned(), v.to_owned())],
+            (PatternItem::Vec(bv), PatternItem::Vec(vv)) => extract_duplicate_bindings_from_pattern(bv, vv),
+            (PatternItem::Vec(bv), PatternItem::Value(Value::Vec(vv))) => extract_duplicate_bindings_from_pattern_and_values(bv, vv),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+pub fn extract_duplicate_bindings_from_pattern_and_values(
+    pattern_with_bindings: &Pattern,
+    values: &Vec<Value>,
+) -> Vec<(String, Value)> {
+    pattern_with_bindings
+        .iter()
+        .zip(values)
+        .flat_map(|(b, v)| match (b, v) {
+            (PatternItem::Binding(b), v) => vec![(b.to_owned(), v.to_owned())],
+            (PatternItem::Vec(bv), Value::Vec(vv)) => extract_duplicate_bindings_from_pattern_and_values(bv, vv),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+/// Checks if a patten item matches a value
+/// Temporarily takes ownership of the binding map, and gives a updated one with new bindings if the pattern matches
+pub fn pattern_item_matches_value_with_bindings(pattern_item: &PatternItem, value: &Value, mut binding_map: HashMap<String, Value>) -> PatternMatchResult {
+    match pattern_item {
+        PatternItem::Any => {}
+        PatternItem::Binding(b) => {
+            if let Some(bound_val) = binding_map.get(b) {
+                // If value was already bound before (with another variable), compare to that var
+                if bound_val != value {
+                    return PatternMatchResult::False;
+                }
+            }
+            else {
+                // Add value to the binding map if we have not seen this
+                binding_map.insert(b.clone(), value.clone());
+            }
+        }
+        PatternItem::Value(v1) => {
+            // Don't instantiate model if value doesn't match current state
+            if v1 != value {
+                return PatternMatchResult::False;
+            }
+        }
+        PatternItem::Vec(v1) => {
+            match value {
+                Value::Vec(v2) if v1.len() == v2.len() => {
+                    for (v1, v2) in v1.iter().zip(v2) {
+                        match pattern_item_matches_value_with_bindings(v1, &v2, binding_map) {
+                            PatternMatchResult::True(updated_bindings) => {
+                                binding_map = updated_bindings;
+                            }
+                            PatternMatchResult::False => {
+                                return PatternMatchResult::False;
+                            }
+                        }
+                    }
+                }
+                _ => return PatternMatchResult::False,
+            }
+        }
+    }
+
+    PatternMatchResult::True(binding_map)
+}
+
+pub fn value_vec_to_pattern_vec(pattern: Vec<Value>) -> Vec<PatternItem> {
+    pattern.into_iter().map(PatternItem::Value).collect()
+}
+
+pub fn pattern_vec_to_value_vec(pattern: Vec<PatternItem>) -> Option<Vec<Value>> {
+    pattern.into_iter().map(|p| match p {
+        PatternItem::Binding(_) | PatternItem::Any => None,
+        PatternItem::Value(v) => Some(v),
+        PatternItem::Vec(v) => pattern_vec_to_value_vec(v).map(Value::Vec)
+    }).collect()
 }

@@ -30,7 +30,7 @@ pub fn run_demo() {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "pos".to_string(),
-                value: PatternItem::Value(Value::List(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
+                value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },
@@ -62,17 +62,17 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("co1".to_string()),
                     var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Value(Value::List(vec![Value::UncertainNumber(20.0, 0.1), Value::UncertainNumber(140.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(45.0, 0.1)])),
+                    value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(20.0, 0.1), Value::UncertainNumber(140.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(45.0, 0.1)])),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
         ],
     ];
 
-    let mut goal = goals[0].clone();
-    let mut committed_path: Option<Vec<RuntimeCommand>> = None;
+    let mut goal = goals.get(0).cloned().unwrap_or(Vec::new());
 
     loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
         advance_time_step(&mut system);
 
         // Update state from TCP
@@ -83,57 +83,31 @@ pub fn run_with_tcp() {
 
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {
-            log::debug!("State: {}", state.cst.cst_id);
+            log::debug!("State: {}", state.icst_for_cst());
         }
 
-        let path = if let Some(committed) = committed_path.as_ref() {
-            Some(committed.clone())
-        } else {
-            // Perform backward chaining
-            let bwd_result = backward_chain(&goal, &system);
-            log::debug!("Results of backward chaining");
-            for mdl in &bwd_result {
-                log::debug!("{mdl}");
-            }
+        // Perform backward chaining
+        let bwd_result = backward_chain(&goal, &system);
+        log::debug!("Results of backward chaining");
+        for mdl in &bwd_result {
+            log::debug!("{mdl}");
+        }
 
-            log::debug!("co1 pos");
-            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("co1", "approximate_pos")]);
-
-            log::debug!("co1 obj_type");
-            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("co1", "obj_type")]);
-
-            log::debug!("h pos");
-            log::debug!("{:?}", system.current_state.variables[&EntityVariableKey::new("h", "position")]);
-
-            // Perform forward chaining
-            let path = forward_chain(&goal, &bwd_result, &system);
-            log::debug!("Results of forward chaining");
-            log::debug!("Goal reachable: {}", !path.is_empty());
-            log::debug!("{path:?}");
-
-            if !path.is_empty() {
-                Some(path)
-            }
-            else {
-                None
-            }
-        };
+        // Perform forward chaining
+        let path = forward_chain(&goal, &bwd_result, &system);
+        log::debug!("Results of forward chaining");
+        log::debug!("Goal reachable: {}", !path.is_empty());
+        log::debug!("{path:?}");
 
         // Send command to controller
-        if let Some(mut path) = path {
+        if !path.is_empty() {
             tcp_interface.execute_command(&path[0]).expect("Failed to execute command with TCP");
             log::info!("Executed command {:?}", &path[0]);
 
-            if !path.is_empty() {
-                path.remove(0);
-                committed_path = Some(path);
-            }
-            else {
-                committed_path = None;
-
+            if path.len() < 2 {
                 log::debug!("Goal achieved, switching to next goal");
                 goals.remove(0);
-                goal = goals[0].clone();
+                goal = goals.get(0).cloned().unwrap_or(Vec::new());
             }
         }
         else {
