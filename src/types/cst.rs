@@ -167,6 +167,8 @@ impl BoundCst {
 
         'entity_loop: for entity_bindings in cst.all_possible_entity_bindings(system) {
             let mut binding_map = HashMap::new();
+            binding_map.extend(entity_bindings.clone());
+
             for fact in &cst.facts {
                 // Don't initialize model if variable does not even have a value
                 // Unwrapping entity key should never panic because all_possible_entity_bindings() should
@@ -185,7 +187,6 @@ impl BoundCst {
                 }
             }
 
-            binding_map.extend(entity_bindings);
             instantiated_csts.push(BoundCst {
                 bindings: binding_map,
                 cst: cst.clone(),

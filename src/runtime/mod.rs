@@ -1,6 +1,6 @@
 
 pub mod pattern_matching;
-mod simulation;
+pub mod simulation;
 mod seeds;
 
 use std::collections::HashSet;

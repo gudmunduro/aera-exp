@@ -7,6 +7,7 @@ use crate::types::pattern::bindings_in_pattern;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::{Fact, MkVal};
 use itertools::Itertools;
+use crate::visualize;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
