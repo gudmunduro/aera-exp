@@ -117,7 +117,6 @@ fn get_goal_requirements_for_goal(
             .collect_vec();
 
         // Create sub goals from the requirement models
-        let mut any_sub_goal_reached_current_state = false;
         for g_req in &goal_req_models {
             let sub_goal_cst = g_req.model.left.pattern.as_icst().expand_cst(data);
             let mut sub_goal = sub_goal_cst.facts.clone();
@@ -148,14 +147,8 @@ fn get_goal_requirements_for_goal(
                 if sub_goal_reached_current_state {
                     goal_requirements.extend(sub_goal_req_models);
                     reached_current_state = true;
-                    any_sub_goal_reached_current_state = true;
                 }
             }
-        }
-
-        // Prune the current casual model if it is a dead end
-        if !any_sub_goal_reached_current_state {
-            goal_requirements.pop();
         }
     }
 

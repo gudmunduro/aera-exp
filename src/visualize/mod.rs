@@ -98,9 +98,7 @@ pub fn visualize_forward_chaining(tree: &Vec<Rc<ForwardChainNode>>) {
                 }
                 Input::Button(ButtonArgs{ button: Button::Keyboard(Key::Down), state: ButtonState::Press, .. }) => {
                     let mut current_select = selected_node.last_mut().unwrap();
-                    if *current_select < tree.len() - 1 {
-                        *current_select += 1;
-                    }
+                    *current_select += 1;
 
                     if START_NODE_Y + ((*current_select + 1) as f64 * (BRANCH_Y_MARGIN + NODE_HEIGHT)) - scroll_y > window.size().height {
                         scroll_y += BRANCH_Y_MARGIN + NODE_HEIGHT;

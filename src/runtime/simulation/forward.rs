@@ -104,6 +104,7 @@ fn forward_chain_rec(
             .as_command()
             .to_runtime_command(&casual_model.bindings)
         {
+            // TODO: Include models that were not found during backward chaining
             let other_casual_models = final_casual_models
                 .iter()
                 .filter(|m| {

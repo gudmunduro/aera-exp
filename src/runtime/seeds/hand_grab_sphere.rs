@@ -116,6 +116,14 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::EntityId("h".to_string()),
+                        var_name: "holding".to_string(),
+                        value: PatternItem::Vec(vec![]),
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
             ],
             entities: vec![EntityDeclaration::new("b", "box")],
         },
@@ -131,6 +139,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
+                        PatternItem::Binding("h".to_string()),
                     ],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -166,7 +175,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Binding("b".to_string()),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("b".to_string())]),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -195,7 +204,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "holding".to_string(),
-                        value: PatternItem::Binding("b".to_string()),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("b".to_string())]),
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -247,7 +256,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![])),
+                    value: PatternItem::Vec(vec![]),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },

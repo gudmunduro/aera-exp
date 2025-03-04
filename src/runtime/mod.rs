@@ -8,7 +8,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{RuntimeCommand, System, SystemTime};
-use crate::runtime::pattern_matching::{compute_instantiated_states};
+use crate::runtime::pattern_matching::{compute_instantiated_states, state_matches_facts};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
 use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
@@ -54,19 +54,55 @@ pub fn run_demo() {
 pub fn run_with_tcp() {
     let mut tcp_interface = TcpInterface::connect().expect("Failed to connect to controller with TCP");
     let mut system = System::new();
-    seeds::robot_advanced_move::setup_robot_advanced_seed(&mut system);
+    seeds::hand_grab_sphere::setup_hand_grab_sphere_seed(&mut system);
 
     let mut goals = vec![
         vec![
             Fact {
                 pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("co1".to_string()),
-                    var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(20.0, 0.1), Value::UncertainNumber(140.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(45.0, 0.1)])),
+                    entity_id: EntityPatternValue::EntityId("b_0".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-0.7), Value::Number(0.0)])),
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
+            /*Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },*/
         ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_1".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-1.0), Value::Number(0.0)])),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+            /*Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::EntityId("b_0".to_string())])),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },*/
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            }
+        ]
     ];
 
     let mut goal = goals.get(0).cloned().unwrap_or(Vec::new());
@@ -83,7 +119,17 @@ pub fn run_with_tcp() {
 
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {
-            log::debug!("State: {}", state.icst_for_cst());
+            log::debug!("{}", state.icst_for_cst());
+        }
+
+        if state_matches_facts(&system.current_state, &goal) {
+            log::info!("Goal achieved");
+            goals.remove(0);
+            goal = goals.get(0).cloned().unwrap_or(Vec::new());
+
+            if goals.is_empty() {
+                log::info!("All goals achieved");
+            }
         }
 
         // Perform backward chaining
@@ -103,12 +149,6 @@ pub fn run_with_tcp() {
         if !path.is_empty() {
             tcp_interface.execute_command(&path[0]).expect("Failed to execute command with TCP");
             log::info!("Executed command {:?}", &path[0]);
-
-            if path.len() < 2 {
-                log::debug!("Goal achieved, switching to next goal");
-                goals.remove(0);
-                goal = goals.get(0).cloned().unwrap_or(Vec::new());
-            }
         }
         else {
             log::info!("No action found with forward chaining")
