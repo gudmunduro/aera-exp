@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{all_causal_models, all_req_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
+use crate::runtime::pattern_matching::{all_assumption_models, all_causal_models, all_req_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, IMdl, Mdl};
 use crate::types::pattern::PatternItem;
@@ -22,11 +22,13 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     }
 
     let casual_models = all_causal_models(data);
+    let assumption_models = all_assumption_models(data);
     let mut observed_goals = Vec::new();
     let (goal_req_models, _) = get_goal_requirements_for_goal(
         goal,
         &instantiable_cas_mdl,
         &casual_models,
+        &assumption_models,
         data,
         &mut observed_goals,
         0,
@@ -39,6 +41,7 @@ fn get_goal_requirements_for_goal(
     goal: &Vec<Fact<MkVal>>,
     instantiable_cas_mdl: &Vec<IMdl>,
     casual_models: &Vec<Mdl>,
+    assumption_models: &Vec<Mdl>,
     data: &System,
     observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
     depth: usize,
@@ -50,8 +53,9 @@ fn get_goal_requirements_for_goal(
     let mut reached_current_state = false;
     let mut goal_requirements: Vec<IMdl> = Vec::new();
 
-    let casual_goal_models = casual_models
+    let goal_models = casual_models
         .iter()
+        .chain(assumption_models.iter())
         // Find all casual models where rhs matches a fact from the goal
         .filter(|m| {
             goal.iter().any(|goal_val| {
@@ -75,25 +79,25 @@ fn get_goal_requirements_for_goal(
         .map(|m| m.imdl_for_model())
         .collect_vec();
 
-    for c_goal_model in casual_goal_models {
+    for goal_model in goal_models {
         // If the casual model can be reached directly from the current state, then we don't have to look further back
         if instantiable_cas_mdl.iter().any(|imdl_val| {
-            compare_imdls(imdl_val, &c_goal_model, true, true)
+            compare_imdls(imdl_val, &goal_model, true, true)
         }) {
             reached_current_state = true;
-            goal_requirements.push(c_goal_model.clone());
+            goal_requirements.push(goal_model.clone());
             continue;
         }
 
-        let g_goal_model_bm = c_goal_model.instantiate(&HashMap::new(), &data);
+        let goal_model_bm = goal_model.instantiate(&HashMap::new(), &data);
 
         // Skip this casual model if rhs matches the current state.
         // We don't have to consider the part of the goal that ia already satisfied in the current state
-        let rhs_mk_val = g_goal_model_bm.model.right.pattern.as_mk_val();
+        let rhs_mk_val = goal_model_bm.model.right.pattern.as_mk_val();
         let rhs_mk_val_value = rhs_mk_val
             .value
-            .get_value_with_bindings(&g_goal_model_bm.bindings);
-        if let Some(mk_val_entity_key) = rhs_mk_val.entity_key(&g_goal_model_bm.bindings) {
+            .get_value_with_bindings(&goal_model_bm.bindings);
+        if let Some(mk_val_entity_key) = rhs_mk_val.entity_key(&goal_model_bm.bindings) {
             if matches!(
             &rhs_mk_val_value,
             Some(v) if data.current_state.variables
@@ -105,19 +109,27 @@ fn get_goal_requirements_for_goal(
             }
         };
 
-        // Add this casual model as a goal requirement to use during forward chaining
-        goal_requirements.push(c_goal_model.clone());
+        if goal_model_bm.model.is_casual_model() {
+            // Add this casual model as a goal requirement to use during forward chaining
+            goal_requirements.push(goal_model.clone());
+        }
 
-        // Requirement models where rhs matches casual model,
-        // with all bindings that we got from backward chaining (from casual model) included
-        let goal_req_models = all_req_models(data)
-            .into_iter()
-            .filter(|m| compare_imdls(&m.right.pattern.as_imdl(), &c_goal_model, true, true))
-            .map(|m| m.backward_chain_known_bindings_from_imdl(&c_goal_model))
-            .collect_vec();
+        let sub_goal_models = if goal_model_bm.model.is_casual_model() {
+            // Requirement models where rhs matches casual model,
+            // with all bindings that we got from backward chaining (from casual model) included
+            all_req_models(data)
+                .into_iter()
+                .filter(|m| compare_imdls(&m.right.pattern.as_imdl(), &goal_model, true, true))
+                .map(|m| m.backward_chain_known_bindings_from_imdl(&goal_model))
+                .collect_vec()
+        }
+        else {
+            // Reuse same model instead of backward chaining if it is an assumption model
+            vec![goal_model_bm]
+        };
 
         // Create sub goals from the requirement models
-        for g_req in &goal_req_models {
+        for g_req in &sub_goal_models {
             let sub_goal_cst = g_req.model.left.pattern.as_icst().expand_cst(data);
             let mut sub_goal = sub_goal_cst.facts.clone();
 
@@ -138,6 +150,7 @@ fn get_goal_requirements_for_goal(
                         &sub_goal,
                         instantiable_cas_mdl,
                         casual_models,
+                        assumption_models,
                         data,
                         observed_goals,
                         depth + 1,

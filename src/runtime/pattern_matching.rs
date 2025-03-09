@@ -2,10 +2,10 @@ use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
-use crate::types::{Fact, MkVal};
+use crate::types::{EntityVariableKey, Fact, MkVal};
 use itertools::Itertools;
 use std::collections::HashMap;
-use crate::types::cst::BoundCst;
+use crate::types::cst::{BoundCst, ICst};
 
 pub enum PatternMatchResult {
     True(HashMap<String, Value>),
@@ -27,25 +27,28 @@ pub fn compute_instantiated_states(
         .collect()
 }
 
+pub fn compute_assumptions(system: &System, state: &SystemState) -> HashMap<EntityVariableKey, Value> {
+    let models = system.models.iter()
+        .filter_map(|(_, m)| m.try_instantiate_with_icst(state))
+        .collect_vec();
+    models.into_iter()
+        .filter_map(|m| match m.model.right.pattern {
+            MdlRightValue::MkVal(rhs @ MkVal { assumption: true, .. }) => {
+                let entity_id = rhs.entity_id.get_id_with_bindings(&m.bindings)
+                    .expect("Cannot fill in entity id binding of assumption");
+                let value = rhs.value.get_value_with_bindings(&m.bindings)
+                    .expect("Cannot fill in all bindings of assumption");
+                Some((EntityVariableKey { entity_id, var_name: rhs.var_name }, value))
+            },
+            _ => None
+        })
+        .collect()
+}
+
 pub fn all_causal_models(data: &System) -> Vec<Mdl> {
     data.models
         .iter()
-        .filter(|(_, m)| match m {
-            Mdl {
-                left:
-                    Fact {
-                        pattern: MdlLeftValue::Command(_),
-                        ..
-                    },
-                right:
-                    Fact {
-                        pattern: MdlRightValue::MkVal(_),
-                        ..
-                    },
-                ..
-            } => true,
-            _ => false,
-        })
+        .filter(|(_, m)| m.is_casual_model())
         .map(|(_, m)| m)
         .cloned()
         .collect()
@@ -54,22 +57,16 @@ pub fn all_causal_models(data: &System) -> Vec<Mdl> {
 pub fn all_req_models(data: &System) -> Vec<Mdl> {
     data.models
         .iter()
-        .filter(|(_, m)| match m {
-            Mdl {
-                left:
-                    Fact {
-                        pattern: MdlLeftValue::ICst(_),
-                        ..
-                    },
-                right:
-                    Fact {
-                        pattern: MdlRightValue::IMdl(_),
-                        ..
-                    },
-                ..
-            } => true,
-            _ => false,
-        })
+        .filter(|(_, m)| m.is_req_model())
+        .map(|(_, m)| m)
+        .cloned()
+        .collect()
+}
+
+pub fn all_assumption_models(data: &System) -> Vec<Mdl> {
+    data.models
+        .iter()
+        .filter(|(_, m)| m.is_assumption_model())
         .map(|(_, m)| m)
         .cloned()
         .collect()
@@ -158,6 +155,21 @@ pub fn compare_imdls(
             allow_unbound,
             allow_different_length,
         )
+}
+
+pub fn compare_icsts(
+    icst1: &ICst,
+    icst2: &ICst,
+    allow_unbound: bool,
+    allow_different_length: bool,
+) -> bool {
+    icst1.cst_id == icst2.cst_id
+        && compare_patterns(
+        &icst1.params,
+        &icst2.params,
+        allow_unbound,
+        allow_different_length,
+    )
 }
 
 /// Combine bound values from both to fill in as many values as possible

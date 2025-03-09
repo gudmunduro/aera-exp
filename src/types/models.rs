@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_instantiated_states, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_assumptions, compute_instantiated_states, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::{bindings_in_pattern, flatten_pattern_item_vecs, flatten_pattern_vecs, Pattern};
@@ -84,6 +84,63 @@ impl Mdl {
             bindings,
         }
             .tap_mut(|m| m.compute_backward_bindings())
+    }
+
+    pub fn is_casual_model(&self) -> bool {
+        match self {
+            Mdl {
+                left:
+                Fact {
+                    pattern: MdlLeftValue::Command(_),
+                    ..
+                },
+                right:
+                Fact {
+                    pattern: MdlRightValue::MkVal(_),
+                    ..
+                },
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_req_model(&self) -> bool {
+        match self {
+            Mdl {
+                left:
+                Fact {
+                    pattern: MdlLeftValue::ICst(_),
+                    ..
+                },
+                right:
+                Fact {
+                    pattern: MdlRightValue::IMdl(_),
+                    ..
+                },
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_assumption_model(&self) -> bool {
+        match self {
+            Mdl {
+                left:
+                Fact {
+                    pattern: MdlLeftValue::ICst(_),
+                    ..
+                },
+                right:
+                Fact {
+                    pattern: MdlRightValue::MkVal(MkVal { assumption: true, .. }),
+                    ..
+                },
+                ..
+            } => true,
+            _ => false,
+        }
     }
 }
 
@@ -289,6 +346,7 @@ impl BoundModel {
             predicted_value,
         );
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
+        new_state.variables.extend(compute_assumptions(&system, &new_state));
 
         new_state
     }

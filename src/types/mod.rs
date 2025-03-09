@@ -78,6 +78,9 @@ pub struct MkVal {
     pub entity_id: EntityPatternValue,
     pub var_name: String,
     pub value: PatternItem,
+    // If true, this mk.val will not have to come from the controller
+    // but will instead be assumed to be true if a model predicts it for the current state
+    pub assumption: bool,
 }
 
 impl MkVal {
@@ -163,6 +166,20 @@ impl EntityPatternValue {
 
     pub fn is_binding(&self, binding: &str) -> bool {
         matches!(self, EntityPatternValue::Binding(b) if b == binding)
+    }
+
+    pub fn insert_binding_value(&mut self, bindings: &HashMap<String, Value>) {
+        match self {
+            EntityPatternValue::Binding(b) => {
+                if let Some(Value::EntityId(id)) = bindings.get(b) {
+                    *self = EntityPatternValue::EntityId(id.to_owned());
+                }
+                else {
+                    log::error!("Binding missing when trying to fill in entity binding")
+                }
+            }
+            EntityPatternValue::EntityId(_) => {}
+        }
     }
 }
 

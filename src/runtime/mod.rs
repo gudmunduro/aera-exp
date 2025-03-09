@@ -8,7 +8,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{RuntimeCommand, System, SystemTime};
-use crate::runtime::pattern_matching::{compute_instantiated_states, state_matches_facts};
+use crate::runtime::pattern_matching::{compute_assumptions, compute_instantiated_states, state_matches_facts};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
 use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
@@ -19,6 +19,7 @@ pub fn run_demo() {
     let mut system = System::new();
     seeds::setup_bindings_seed(&mut system);
     system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
+    system.current_state.variables.extend(compute_assumptions(&system, &system.current_state));
 
     log::debug!("Instantiated composite states");
     for state in system.current_state.instansiated_csts.values().flatten() {
@@ -29,8 +30,9 @@ pub fn run_demo() {
         Fact {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
-                var_name: "pos".to_string(),
+                var_name: "position".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
+                assumption: false,
             },
             time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
         },
@@ -63,6 +65,7 @@ pub fn run_with_tcp() {
                     entity_id: EntityPatternValue::EntityId("b_0".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-0.7), Value::Number(0.0)])),
+                    assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
@@ -81,6 +84,7 @@ pub fn run_with_tcp() {
                     entity_id: EntityPatternValue::EntityId("b_1".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-1.0), Value::Number(0.0)])),
+                    assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
@@ -99,6 +103,7 @@ pub fn run_with_tcp() {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Vec(vec![]),
+                    assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             }
@@ -114,8 +119,9 @@ pub fn run_with_tcp() {
         // Update state from TCP
         log::debug!("Waiting for variables");
         let tcp_variables = tcp_interface.update_variables();
-        system.current_state.variables.extend(tcp_variables);
+        system.current_state.variables = tcp_variables;
         system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
+        system.current_state.variables.extend(compute_assumptions(&system, &system.current_state));
 
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {

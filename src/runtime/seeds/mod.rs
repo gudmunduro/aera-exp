@@ -23,6 +23,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     entity_id: EntityPatternValue::Binding("hb".to_string()),
                     var_name: "pos".to_string(),
                     value: PatternItem::Binding("p".to_string()),
+                    assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             }],
@@ -78,6 +79,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     entity_id: EntityPatternValue::Binding("hb".to_string()),
                     var_name: "pos".to_string(),
                     value: PatternItem::Binding("cp".to_string()),
+                    assumption: false,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -104,6 +106,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                         entity_id: EntityPatternValue::Binding("hb".to_string()),
                         var_name: "pos".to_string(),
                         value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -112,6 +115,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                         entity_id: EntityPatternValue::EntityId("o".to_string()),
                         var_name: "pos".to_string(),
                         value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -164,6 +168,7 @@ pub fn setup_bindings_seed(system: &mut System) {
                     entity_id: EntityPatternValue::EntityId("o".to_string()),
                     var_name: "pos".to_string(),
                     value: PatternItem::Binding("np".to_string()),
+                    assumption: false,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -187,6 +192,53 @@ pub fn setup_bindings_seed(system: &mut System) {
                 ),
             )]
                 .into(),
+            confidence: 1.0,
+        },
+    );
+
+    system.csts.insert(
+        "cst_obj_pos".to_string(),
+        Cst {
+            cst_id: "cst_obj_pos".to_string(),
+            facts: vec![
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::EntityId("o".to_string()),
+                        var_name: "pos".to_string(),
+                        value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+            ],
+            entities: vec![],
+        },
+    );
+
+    system.models.insert(
+        "mdl_o_pos_alias".to_string(),
+        Mdl {
+            model_id: "mdl_o_pos_alias".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::ICst(ICst {
+                    cst_id: "cst_obj_pos".to_string(),
+                    params: vec![
+                        PatternItem::Binding("p".to_string()),
+                    ],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::MkVal(MkVal {
+                    entity_id: EntityPatternValue::EntityId("o".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Binding("p".to_string()),
+                    assumption: true,
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: HashMap::new(),
+            backward_computed: HashMap::new(),
             confidence: 1.0,
         },
     );
@@ -215,6 +267,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("p".to_string()),
+                    assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             }],
@@ -266,6 +319,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("cp".to_string()),
+                    assumption: false,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -292,6 +346,7 @@ pub fn setup_simple_seed(system: &mut System) {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -300,6 +355,7 @@ pub fn setup_simple_seed(system: &mut System) {
                         entity_id: EntityPatternValue::EntityId("o".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
                 },
@@ -349,6 +405,7 @@ pub fn setup_simple_seed(system: &mut System) {
                     entity_id: EntityPatternValue::EntityId("o".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("np".to_string()),
+                    assumption: false,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
