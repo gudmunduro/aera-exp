@@ -55,8 +55,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -158,8 +158,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -242,8 +242,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -302,8 +302,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );

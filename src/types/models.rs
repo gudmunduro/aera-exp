@@ -5,7 +5,7 @@ use crate::types::pattern::{bindings_in_pattern, flatten_pattern_item_vecs, flat
 use crate::types::runtime::{System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use tap::Tap;
 use crate::types::value::Value;
@@ -16,8 +16,8 @@ pub struct Mdl {
     pub left: Fact<MdlLeftValue>,
     pub right: Fact<MdlRightValue>,
     pub confidence: f64,
-    pub forward_computed: HashMap<String, Function>,
-    pub backward_computed: HashMap<String, Function>,
+    pub forward_computed: BTreeMap<String, Function>,
+    pub backward_computed: BTreeMap<String, Function>,
 }
 
 impl Mdl {
@@ -347,6 +347,8 @@ impl BoundModel {
         );
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
         new_state.variables.extend(compute_assumptions(&system, &new_state));
+        // Compute instantiated csts again, now with assumption variables
+        new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
 
         new_state
     }

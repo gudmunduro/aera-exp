@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::vec;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
@@ -59,8 +60,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -118,17 +119,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 Fact {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
-                        var_name: "approximate_pos".to_string(),
-                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
-                        assumption: false,
-                    },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
-                Fact {
-                    pattern: MkVal {
-                        entity_id: EntityPatternValue::Binding("h".to_string()),
                         var_name: "position".to_string(),
-                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Binding("pw".to_string())]),
+                        value: PatternItem::Vec(vec![PatternItem::Value(Value::Number(162.0)), PatternItem::Value(Value::Number(191.0))]),
                         assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -137,7 +129,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     pattern: MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "holding".to_string(),
-                        value: PatternItem::Value(Value::Vec(vec![])),
+                        value: PatternItem::Vec(vec![]),
                         assumption: false,
                     },
                     time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -160,10 +152,6 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("co".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
                     ],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -178,8 +166,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -268,8 +256,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -330,8 +318,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
-            forward_computed: HashMap::new(),
-            backward_computed: HashMap::new(),
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );
@@ -353,7 +341,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     entity_id: EntityPatternValue::Binding("co".to_string()),
                     var_name: "approximate_pos".to_string(),
                     value: PatternItem::Binding("np".to_string()),
-                    assumption: false,
+                    assumption: true,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
@@ -365,6 +353,203 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 ),
             )].into(),
             backward_computed: [].into(),
+            confidence: 1.0,
+        },
+    );
+
+
+    // Moving changes cam position of cubes
+
+    system.csts.insert(
+        "S_cube_pos".to_string(),
+        Cst {
+            cst_id: "S_cube_pos".to_string(),
+            facts: vec![
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("co".to_string()),
+                        var_name: "obj_type".to_string(),
+                        value: PatternItem::Value(Value::Number(0.0)),
+                        assumption: false,
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("co".to_string()),
+                        var_name: "position".to_string(),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string())]),
+                        assumption: false,
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+            ],
+            entities: vec![
+                EntityDeclaration::new("h", "hand"),
+                EntityDeclaration::new("co", "cam_obj"),
+            ],
+        },
+    );
+
+    system.models.insert(
+        "M_cube_cam_pos_req".to_string(),
+        Mdl {
+            model_id: "M_cube_cam_pos_req".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::ICst(ICst {
+                    cst_id: "S_cube_pos".to_string(),
+                    params: vec![
+                        PatternItem::Binding("h".to_string()),
+                        PatternItem::Binding("co".to_string()),
+                        PatternItem::Binding("px".to_string()),
+                        PatternItem::Binding("py".to_string()),
+                    ],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::IMdl(IMdl {
+                    model_id: "M_cube_cam_pos".to_string(),
+                    params: vec![
+                        PatternItem::Binding("h".to_string()),
+                        PatternItem::Binding("npy".to_string()),
+                        PatternItem::Binding("py".to_string()),
+                        PatternItem::Binding("npx".to_string()),
+                        PatternItem::Binding("px".to_string()),
+                        PatternItem::Binding("co".to_string()),
+                    ],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
+            confidence: 1.0,
+        },
+    );
+
+    system.models.insert(
+        "M_cube_cam_pos".to_string(),
+        Mdl {
+            model_id: "M_cube_cam_pos".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::Command(Command {
+                    name: "move".to_string(),
+                    entity_id: EntityPatternValue::Binding("h".to_string()),
+                    params: vec![PatternItem::Vec(vec![PatternItem::Binding("dx".to_string()), PatternItem::Binding("dy".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Value(Value::Number(0.0))])],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::MkVal(MkVal {
+                    entity_id: EntityPatternValue::Binding("co".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string())]),
+                    assumption: true,
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: [
+                (
+                    "dx".to_string(),
+                    Function::Sub(
+                        Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
+                    )
+                ),
+                (
+                    "dy".to_string(),
+                    Function::Div(
+                        Box::new(Function::Sub(
+                            Box::new(Function::Value(PatternItem::Binding("npx".to_string()))),
+                            Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
+                        )),
+                        Box::new(Function::Value(PatternItem::Value(Value::Number(1.175))))
+                    ),
+                ),
+            ].into(),
+            backward_computed: [
+                (
+                    "dx".to_string(),
+                    Function::Sub(
+                        Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
+                    ),
+                ),
+                (
+                    "dy".to_string(),
+                    Function::Div(
+                        Box::new(Function::Sub(
+                            Box::new(Function::Value(PatternItem::Binding("npx".to_string()))),
+                            Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
+                        )),
+                        Box::new(Function::Value(PatternItem::Value(Value::Number(1.175))))
+                    ),
+                ),
+            ].into(),
+            confidence: 1.0,
+        },
+    );
+
+
+    // Assumption model for the absolute position of the cube
+
+    system.csts.insert(
+        "S_holding_obj_pos".to_string(),
+        Cst {
+            cst_id: "S_holding_obj_pos".to_string(),
+            facts: vec![
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("h".to_string()),
+                        var_name: "position".to_string(),
+                        value: PatternItem::Binding("p".to_string()),
+                        assumption: false,
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+                Fact {
+                    pattern: MkVal {
+                        entity_id: EntityPatternValue::Binding("h".to_string()),
+                        var_name: "holding".to_string(),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("co".to_string())]),
+                        assumption: false,
+                    },
+                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                },
+            ],
+            entities: vec![
+                EntityDeclaration::new("co", "cam_obj"),
+                EntityDeclaration::new("h", "hand"),
+            ],
+        },
+    );
+
+    system.models.insert(
+        "M_cube_pos_alias".to_string(),
+        Mdl {
+            model_id: "M_cube_pos_alias".to_string(),
+            left: Fact {
+                pattern: MdlLeftValue::ICst(ICst {
+                    cst_id: "S_holding_obj_pos".to_string(),
+                    params: vec![
+                        PatternItem::Binding("co".to_string()),
+                        PatternItem::Binding("h".to_string()),
+                        PatternItem::Binding("p".to_string()),
+                    ],
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            right: Fact {
+                pattern: MdlRightValue::MkVal(MkVal {
+                    entity_id: EntityPatternValue::Binding("co".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Binding("p".to_string()),
+                    assumption: true,
+                }),
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            },
+            forward_computed: Default::default(),
+            backward_computed: Default::default(),
             confidence: 1.0,
         },
     );

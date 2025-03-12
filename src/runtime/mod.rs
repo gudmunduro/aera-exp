@@ -5,6 +5,7 @@ mod seeds;
 
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::vec;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{RuntimeCommand, System, SystemTime};
@@ -56,46 +57,19 @@ pub fn run_demo() {
 pub fn run_with_tcp() {
     let mut tcp_interface = TcpInterface::connect().expect("Failed to connect to controller with TCP");
     let mut system = System::new();
-    seeds::hand_grab_sphere::setup_hand_grab_sphere_seed(&mut system);
+    seeds::robot_advanced_move::setup_robot_advanced_seed(&mut system);
 
     let mut goals = vec![
         vec![
             Fact {
                 pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("b_0".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-0.7), Value::Number(0.0)])),
+                    entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(260.0), Value::Number(0.0), Value::Number(0.0), Value::Number(45.0)])),
                     assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
             },
-            /*Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Vec(vec![]),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },*/
-        ],
-        vec![
-            Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("b_1".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-1.0), Value::Number(0.0)])),
-                    assumption: false,
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
-            /*Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::EntityId("b_0".to_string())])),
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },*/
         ],
         vec![
             Fact {
@@ -106,8 +80,8 @@ pub fn run_with_tcp() {
                     assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            }
-        ]
+            },
+        ],
     ];
 
     let mut goal = goals.get(0).cloned().unwrap_or(Vec::new());
@@ -122,6 +96,7 @@ pub fn run_with_tcp() {
         system.current_state.variables = tcp_variables;
         system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
         system.current_state.variables.extend(compute_assumptions(&system, &system.current_state));
+        system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
 
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {

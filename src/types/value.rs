@@ -115,7 +115,7 @@ impl Mul<Value> for Value {
 
     fn mul(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 - n2),
+            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 * n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
@@ -134,7 +134,7 @@ impl Div<Value> for Value {
 
     fn div(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 - n2),
+            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 / n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
