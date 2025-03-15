@@ -1,14 +1,20 @@
-use crate::runtime::pattern_matching::{combine_pattern_bindings, compute_assumptions, compute_instantiated_states, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{
+    combine_pattern_bindings, compare_patterns, compute_assumptions, compute_instantiated_states,
+    extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult,
+};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
-use crate::types::pattern::{bindings_in_pattern, flatten_pattern_item_vecs, flatten_pattern_vecs, Pattern};
+use crate::types::pattern::{
+    bindings_in_pattern, flatten_pattern_item_vecs, flatten_pattern_vecs, Pattern,
+};
 use crate::types::runtime::{System, SystemState};
+use crate::types::value::Value;
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 use tap::Tap;
-use crate::types::value::Value;
 
 #[derive(Clone, Debug)]
 pub struct Mdl {
@@ -16,20 +22,16 @@ pub struct Mdl {
     pub left: Fact<MdlLeftValue>,
     pub right: Fact<MdlRightValue>,
     pub confidence: f64,
-    pub forward_computed: BTreeMap<String, Function>,
-    pub backward_computed: BTreeMap<String, Function>,
+    pub forward_computed: Vec<(String, Function)>,
+    pub backward_computed: Vec<(String, Function)>,
 }
 
 impl Mdl {
     pub fn binding_param(&self) -> Vec<String> {
         let left_pattern = match &self.left.pattern {
             MdlLeftValue::ICst(cst) => bindings_in_pattern(&cst.params),
-            MdlLeftValue::Command(cmd) => {
-                cmd.get_bindings()
-            }
-            MdlLeftValue::MkVal(mk_val) => {
-                mk_val.get_bindings()
-            }
+            MdlLeftValue::Command(cmd) => cmd.get_bindings(),
+            MdlLeftValue::MkVal(mk_val) => mk_val.get_bindings(),
         };
         let params_in_computed = self
             .forward_computed
@@ -45,33 +47,42 @@ impl Mdl {
             .chain(params_in_computed.into_iter())
             .chain(right_params)
             // Bindings assigned to function results cannot be passes as parameters
-            .filter(|b| !self.forward_computed.contains_key(b))
+            .filter(|b| !self.forward_computed.iter().any(|(k, _)| k == b))
             .unique()
             .collect()
     }
 
+    pub fn fwd_guard_params(&self) -> Vec<&str> {
+        self.forward_computed.iter().map(|(p, _)| p.as_str()).collect()
+    }
+
     /// Attempt to instantiate this model using the lhs icst instruction
-    pub fn try_instantiate_with_icst(&self, state: &SystemState) -> Option<BoundModel> {
+    pub fn try_instantiate_with_icst(&self, state: &SystemState) -> Vec<BoundModel> {
         let icst = match &self.left.pattern {
             MdlLeftValue::ICst(icst) => icst,
-            _ => return None,
+            _ => return Vec::new(),
         };
-        for instantiated_cst in state.instansiated_csts.get(&icst.cst_id)? {
+        let mut results = Vec::new();
+        for instantiated_cst in state
+            .instansiated_csts
+            .get(&icst.cst_id)
+            .unwrap_or(&Vec::new())
+        {
             match instantiated_cst.match_and_get_bindings_for_icst(&icst) {
                 PatternMatchResult::True(bindings) => {
-                    return Some(
+                    results.push(
                         BoundModel {
                             bindings,
                             model: self.clone(),
                         }
                         .tap_mut(|m| m.compute_forward_bindings()),
-                    )
+                    );
                 }
                 PatternMatchResult::False => continue,
             }
         }
 
-        None
+        results
     }
 
     /// Get a bound version of this model from rhs imdl
@@ -83,22 +94,22 @@ impl Mdl {
             model: self.clone(),
             bindings,
         }
-            .tap_mut(|m| m.compute_backward_bindings())
+        .tap_mut(|m| m.compute_backward_bindings())
     }
 
     pub fn is_casual_model(&self) -> bool {
         match self {
             Mdl {
                 left:
-                Fact {
-                    pattern: MdlLeftValue::Command(_),
-                    ..
-                },
+                    Fact {
+                        pattern: MdlLeftValue::Command(_),
+                        ..
+                    },
                 right:
-                Fact {
-                    pattern: MdlRightValue::MkVal(_),
-                    ..
-                },
+                    Fact {
+                        pattern: MdlRightValue::MkVal(_),
+                        ..
+                    },
                 ..
             } => true,
             _ => false,
@@ -109,15 +120,15 @@ impl Mdl {
         match self {
             Mdl {
                 left:
-                Fact {
-                    pattern: MdlLeftValue::ICst(_),
-                    ..
-                },
+                    Fact {
+                        pattern: MdlLeftValue::ICst(_),
+                        ..
+                    },
                 right:
-                Fact {
-                    pattern: MdlRightValue::IMdl(_),
-                    ..
-                },
+                    Fact {
+                        pattern: MdlRightValue::IMdl(_),
+                        ..
+                    },
                 ..
             } => true,
             _ => false,
@@ -128,15 +139,40 @@ impl Mdl {
         match self {
             Mdl {
                 left:
-                Fact {
-                    pattern: MdlLeftValue::ICst(_),
-                    ..
-                },
+                    Fact {
+                        pattern: MdlLeftValue::ICst(_),
+                        ..
+                    },
                 right:
-                Fact {
-                    pattern: MdlRightValue::MkVal(MkVal { assumption: true, .. }),
-                    ..
-                },
+                    Fact {
+                        pattern:
+                            MdlRightValue::MkVal(MkVal {
+                                assumption: true, ..
+                            }),
+                        ..
+                    },
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_state_prediction(&self) -> bool {
+        match self {
+            Mdl {
+                left:
+                    Fact {
+                        pattern: MdlLeftValue::ICst(_),
+                        ..
+                    },
+                right:
+                    Fact {
+                        pattern:
+                            MdlRightValue::MkVal(MkVal {
+                                assumption: false, ..
+                            }),
+                        ..
+                    },
                 ..
             } => true,
             _ => false,
@@ -202,13 +238,30 @@ impl MdlRightValue {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct IMdl {
     pub model_id: String,
     pub params: Pattern,
+    pub fwd_guard_bindings: HashMap<String, Value>,
 }
 
 impl IMdl {
+    pub fn new(model_id: String, params: Pattern) -> IMdl {
+        IMdl {
+            model_id,
+            params,
+            fwd_guard_bindings: HashMap::new(),
+        }
+    }
+
+    pub fn with_fwd_guards(model_id: String, params: Pattern, fwd_guard_params: HashMap<String, Value>) -> IMdl {
+        IMdl {
+            model_id,
+            params,
+            fwd_guard_bindings: fwd_guard_params,
+        }
+    }
+
     pub fn map_bindings_to_model(
         &self,
         bindings: &HashMap<String, Value>,
@@ -227,30 +280,47 @@ impl IMdl {
             .collect()
     }
 
-    pub fn instantiate(
-        &self,
-        bindings: &HashMap<String, Value>,
-        data: &System,
-    ) -> BoundModel {
+    pub fn instantiate(&self, bindings: &HashMap<String, Value>, data: &System) -> BoundModel {
         let model = data
             .models
             .get(&self.model_id)
             .expect(&format!("Model in imdl does not exist {}", self.model_id))
             .clone();
-        let bindings = self.map_bindings_to_model(bindings, data);
+        let mut bindings = self.map_bindings_to_model(bindings, data);
+        bindings.extend(self.fwd_guard_bindings.clone());
 
         BoundModel { bindings, model }.tap_mut(|m| m.compute_forward_bindings())
     }
 
     pub fn merge_with(mut self, imdl: IMdl) -> IMdl {
         self.params = combine_pattern_bindings(self.params, imdl.params);
+        self.fwd_guard_bindings.extend(imdl.fwd_guard_bindings);
         self
     }
 }
 
+// Hacky Eq implementation using partial eq function
+impl Eq for IMdl {
+}
+
+impl Hash for IMdl {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.model_id.hash(state);
+        self.params.hash(state);
+        self.fwd_guard_bindings.iter().collect_vec().hash(state);
+    }
+}
+
+
 impl Display for IMdl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(imdl {} {})", self.model_id, self.params.iter().map(|p| p.to_string()).join(" "))?;
+        write!(
+            f,
+            "(imdl {} {} | [{}])",
+            self.model_id,
+            self.params.iter().map(|p| p.to_string()).join(" "),
+            self.fwd_guard_bindings.iter().map(|(b, v)| format!("{b}: {v}")).join(", ")
+        )?;
 
         Ok(())
     }
@@ -267,18 +337,21 @@ impl BoundModel {
     /// Can be used to compare it to imdl on rhs of req. models
     pub fn imdl_for_model(&self) -> IMdl {
         let binding_params = self.model.binding_param();
-        let param_pattern = binding_params.iter()
+        let param_pattern = binding_params
+            .iter()
             .map(|b| match self.bindings.get(b) {
                 Some(v) => PatternItem::Value(v.clone()),
                 // There is no specific binding in the imdl, since those depend on the model the imdl is in
-                None => PatternItem::Any
+                None => PatternItem::Any,
             })
             .collect();
 
-        IMdl {
-            model_id: self.model.model_id.clone(),
-            params: param_pattern,
-        }
+        let fwd_guard_bindings = self.model.fwd_guard_params()
+            .into_iter()
+            .filter_map(|b| Some((b.to_owned(), self.bindings.get(b)?.clone())))
+            .collect();
+
+        IMdl::with_fwd_guards(self.model.model_id.clone(), param_pattern, fwd_guard_bindings)
     }
 
     /// Predict what happens to SystemState after model is executed
@@ -289,49 +362,67 @@ impl BoundModel {
         state: &SystemState,
         other_casual_models: &Vec<&BoundModel>,
         system: &System,
-    ) -> SystemState {
+    ) -> Option<SystemState> {
         let MdlLeftValue::Command(cmd) = &self.model.left.pattern else {
-            return state.clone();
+            return None;
         };
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
-            return state.clone();
+            return None;
         };
-        let Ok(runtime_cmd) = cmd.to_runtime_command(&self.bindings) else {
-            log::error!(
-                "Cannot get runtime command when tyring to predict state change in {}",
-                self.model.model_id
-            );
-            return state.clone();
+        let Some(predicted_value) = mk_val
+            .value
+            .get_value_with_bindings(&self.bindings) else {
+            return None;
         };
+        let mut cmd = cmd.clone();
+        cmd.params = fill_in_pattern_with_bindings(cmd.params, &self.bindings);
+
         // Find all other models that predict a state change based on the exact same command, and use those predictions as well
         let other_predicted_changes = other_casual_models
             .iter()
             .filter_map(|m| {
-                match m
-                    .model
-                    .left
-                    .pattern
-                    .as_command()
-                    .to_runtime_command(&m.bindings)
-                {
-                    Ok(cmd) if runtime_cmd == cmd => Some(m),
-                    _ => None,
+                let mut other_cmd = m.model.left.pattern.as_command().clone();
+                other_cmd.params = fill_in_pattern_with_bindings(other_cmd.params, &m.bindings);
+
+                let cmd_name_match = cmd.name == other_cmd.name;
+                let params_match = compare_patterns(&cmd.params, &other_cmd.params, true, true);
+                let entity_id_match = match (
+                    cmd.entity_id.get_id_with_bindings(&self.bindings),
+                    other_cmd.entity_id.get_id_with_bindings(&m.bindings),
+                ) {
+                    (Some(e1), Some(e2)) => e1 == e2,
+                    ((None, _) | (_, None)) => true,
+                };
+
+                if cmd_name_match && params_match && entity_id_match {
+                    let mut m = (*m).clone();
+                    // Get bindings from the command in the "main" model and add them to this model
+                    let additional_bindings = extract_bindings_from_patterns(
+                        &other_cmd.params,
+                        &cmd.params,
+                    );
+                    m.bindings.extend(additional_bindings);
+
+                    m.compute_forward_bindings();
+
+                    Some(m)
+                } else {
+                    None
                 }
             })
             .filter_map(|m| {
                 let mk_val = m.model.right.pattern.as_mk_val();
                 let entity_id = mk_val.entity_id.get_id_with_bindings(&m.bindings)?;
-                let value = mk_val
-                    .value
-                    .get_value_with_bindings(&m.bindings)?;
-                Some((EntityVariableKey { entity_id, var_name: mk_val.var_name.to_owned() }, value))
+                let value = mk_val.value.get_value_with_bindings(&m.bindings)?;
+                Some((
+                    EntityVariableKey {
+                        entity_id,
+                        var_name: mk_val.var_name.to_owned(),
+                    },
+                    value,
+                ))
             })
             .collect_vec();
-
-        let predicted_value = mk_val
-            .value
-            .get_value_with_bindings(&self.bindings)
-            .expect("Binding missing when trying to predict state change");
 
         let mut new_state = state.clone();
         new_state.variables.extend(other_predicted_changes);
@@ -346,11 +437,13 @@ impl BoundModel {
             predicted_value,
         );
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
-        new_state.variables.extend(compute_assumptions(&system, &new_state));
+        new_state
+            .variables
+            .extend(compute_assumptions(&system, &new_state));
         // Compute instantiated csts again, now with assumption variables
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
 
-        new_state
+        Some(new_state)
     }
 
     /// Add bindings from `bindings` for variables which were not bound before

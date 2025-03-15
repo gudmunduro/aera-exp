@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::vec;
 use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
-use crate::types::runtime::{RuntimeCommand, System, SystemTime};
+use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
 use crate::runtime::pattern_matching::{compute_assumptions, compute_instantiated_states, state_matches_facts};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
@@ -31,7 +31,7 @@ pub fn run_demo() {
         Fact {
             pattern: MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
-                var_name: "position".to_string(),
+                var_name: "pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
                 assumption: false,
             },
@@ -63,7 +63,29 @@ pub fn run_with_tcp() {
         vec![
             Fact {
                 pattern: MkVal {
-                    entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                    entity_id: EntityPatternValue::EntityId("2".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(200.0), Value::Number(200.0), Value::Number(0.0), Value::Number(45.0)])),
+                    assumption: false,
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                    assumption: false,
+                },
+                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            },
+        ],
+        vec![
+            Fact {
+                pattern: MkVal {
+                    entity_id: EntityPatternValue::EntityId("1".to_string()),
                     var_name: "approximate_pos".to_string(),
                     value: PatternItem::Value(Value::Vec(vec![Value::Number(260.0), Value::Number(0.0), Value::Number(0.0), Value::Number(45.0)])),
                     assumption: false,
@@ -98,6 +120,9 @@ pub fn run_with_tcp() {
         system.current_state.variables.extend(compute_assumptions(&system, &system.current_state));
         system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
 
+        log::debug!("Got variables");
+        print_all_variables(&system.current_state);
+
         log::debug!("Instantiated composite states");
         for state in system.current_state.instansiated_csts.values().flatten() {
             log::debug!("{}", state.icst_for_cst());
@@ -121,7 +146,7 @@ pub fn run_with_tcp() {
         }
 
         // Perform forward chaining
-        let path = forward_chain(&goal, &bwd_result, &system);
+        let mut path = forward_chain(&goal, &bwd_result, &system);
         log::debug!("Results of forward chaining");
         log::debug!("Goal reachable: {}", !path.is_empty());
         log::debug!("{path:?}");
@@ -143,4 +168,12 @@ fn advance_time_step(data: &mut System) {
     };
     // Increment by 100ms
     data.current_state.time = SystemTime::Exact(time + 100);
+}
+
+fn print_all_variables(state: &SystemState) {
+    for (key, value) in &state.variables {
+        let entity = &key.entity_id;
+        let variable = &key.var_name;
+        log::debug!("(mk.val {entity} {variable} {value})");
+    }
 }

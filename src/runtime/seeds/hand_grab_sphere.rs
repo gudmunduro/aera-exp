@@ -45,14 +45,14 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_move".to_string(),
-                    params: vec![
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "mdl_move".to_string(),
+                    vec![
                         PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("np".to_string()),
+                        PatternItem::Binding("dp".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
-                }),
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -83,6 +83,14 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: [(
+                "np".to_string(),
+                Function::Add(
+                    Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("dp".to_string()))),
+                ),
+            )]
+                .into(),
+            backward_computed: [(
                 "dp".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
@@ -90,7 +98,6 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 ),
             )]
                 .into(),
-            backward_computed: [].into(),
             confidence: 1.0,
         },
     );
@@ -150,12 +157,12 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "M_grab".to_string(),
-                    params: vec![
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "M_grab".to_string(),
+                    vec![
                         PatternItem::Binding("b".to_string())
                     ],
-                }),
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -236,10 +243,10 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "M_release".to_string(),
-                    params: vec![],
-                }),
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "M_release".to_string(),
+                    vec![],
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -292,14 +299,14 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "M_move_cube".to_string(),
-                    params: vec![
-                        PatternItem::Binding("np".to_string()),
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "M_move_cube".to_string(),
+                    vec![
+                        PatternItem::Binding("dp".to_string()),
                         PatternItem::Binding("p".to_string()),
                         PatternItem::Binding("b".to_string()),
                     ],
-                }),
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -330,13 +337,19 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: [(
+                "np".to_string(),
+                Function::Add(
+                    Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("dp".to_string()))),
+                ),
+            )].into(),
+            backward_computed: [(
                 "dp".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
                 ),
             )].into(),
-            backward_computed: [].into(),
             confidence: 1.0,
         },
     );

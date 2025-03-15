@@ -29,10 +29,9 @@ impl Cst {
         let fact_bindings = self
             .facts
             .iter()
-            .flat_map(|fact| fact.pattern.value.get_bindings())
-            .unique();
+            .flat_map(|fact| fact.pattern.value.get_bindings());
 
-        entity_bindings.chain(fact_bindings).collect()
+        entity_bindings.chain(fact_bindings).unique().collect()
     }
 
     pub fn fill_in_bindings(&self, bindings: &HashMap<String, Value>) -> Cst {
@@ -173,7 +172,10 @@ impl BoundCst {
                 // Don't initialize model if variable does not even have a value
                 // Unwrapping entity key should never panic because all_possible_entity_bindings() should
                 // return maps with all entities bound
-                let Some(current_value) = state.variables.get(&fact.pattern.entity_key(&entity_bindings).unwrap()) else {
+                let Some(key) = &fact.pattern.entity_key(&binding_map) else {
+                    continue 'entity_loop;
+                };
+                let Some(current_value) = state.variables.get(key) else {
                     continue 'entity_loop;
                 };
 

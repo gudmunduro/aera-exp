@@ -34,6 +34,17 @@ impl Value {
             _ => panic!("Value excepted to be an entity id"),
         }
     }
+
+    pub fn try_to_string(&self) -> Option<String> {
+        match self {
+            Value::Number(i) => Some(i.to_string()),
+            Value::UncertainNumber(i, _) => Some(i.to_string()),
+            Value::String(s) => Some(s.clone()),
+            Value::EntityId(s) => Some(s.clone()),
+            Value::Vec(v) if v.len() == 1 => v[0].try_to_string(),
+            Value::Vec(_) => None,
+        }
+    }
 }
 
 impl PartialEq<Value> for Value {
@@ -85,6 +96,7 @@ impl Add<Value> for Value {
             ),
             (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m + n, s),
             (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n + m, s),
+            (Value::UncertainNumber(n, s1), Value::UncertainNumber(m, s2)) => Value::UncertainNumber(n + m, s1.max(s2)),
             _ => panic!("Value does not support addition"),
         }
     }
@@ -104,7 +116,7 @@ impl Sub<Value> for Value {
             ),
             (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m - n, s),
             (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n - m, s),
-            (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) if float_eq(s1, s2) => Value::UncertainNumber(m1 - m2, s1),
+            (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) => Value::UncertainNumber(m1 - m2, s1.max(s2)),
             (v1, v2) => panic!("Value does not support subtraction ({v1:?} - {v2:?})"),
         }
     }

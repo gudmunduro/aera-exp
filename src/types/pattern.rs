@@ -5,7 +5,7 @@ use crate::types::value::Value;
 
 pub type Pattern = Vec<PatternItem>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub enum PatternItem {
     Any,
     Binding(String),
@@ -26,7 +26,7 @@ impl PatternItem {
             PatternItem::Any => None,
             PatternItem::Binding(b) => bindings.get(b).cloned(),
             PatternItem::Value(v) => Some(v.clone()),
-            PatternItem::Vec(v) => Some(Value::Vec(v.iter().filter_map(|e| e.get_value_with_bindings(bindings)).collect_vec()))
+            PatternItem::Vec(v) => Some(Value::Vec(v.iter().map(|e| e.get_value_with_bindings(bindings)).collect::<Option<Vec<_>>>()?))
         }
     }
 

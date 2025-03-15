@@ -46,14 +46,14 @@ pub fn setup_bindings_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_move".to_string(),
-                    params: vec![
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "mdl_move".to_string(),
+                    vec![
                         PatternItem::Binding("hb".to_string()),
-                        PatternItem::Binding("cp".to_string()),
+                        PatternItem::Binding("dp".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
-                }),
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -84,6 +84,14 @@ pub fn setup_bindings_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: [(
+                "cp".to_string(),
+                Function::Add(
+                    Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("dp".to_string()))),
+                ),
+            )]
+                .into(),
+            backward_computed: [(
                 "dp".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("cp".to_string()))),
@@ -91,7 +99,6 @@ pub fn setup_bindings_seed(system: &mut System) {
                 ),
             )]
                 .into(),
-            backward_computed: [].into(),
             confidence: 1.0,
         },
     );
@@ -139,10 +146,10 @@ pub fn setup_bindings_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_push".to_string(),
-                    params: vec![PatternItem::Binding("p".to_string())],
-                }),
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "mdl_push".to_string(),
+                    vec![PatternItem::Binding("p".to_string())],
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -287,13 +294,13 @@ pub fn setup_simple_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_move".to_string(),
-                    params: vec![
-                        PatternItem::Binding("cp".to_string()),
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "mdl_move".to_string(),
+                    vec![
+                        PatternItem::Binding("dp".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
-                }),
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),
@@ -324,6 +331,14 @@ pub fn setup_simple_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: [(
+                "cp".to_string(),
+                Function::Add(
+                    Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("dp".to_string()))),
+                ),
+            )]
+                .into(),
+            backward_computed: [(
                 "dp".to_string(),
                 Function::Sub(
                     Box::new(Function::Value(PatternItem::Binding("cp".to_string()))),
@@ -331,7 +346,6 @@ pub fn setup_simple_seed(system: &mut System) {
                 ),
             )]
                 .into(),
-            backward_computed: [].into(),
             confidence: 1.0,
         },
     );
@@ -376,10 +390,10 @@ pub fn setup_simple_seed(system: &mut System) {
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl {
-                    model_id: "mdl_push".to_string(),
-                    params: vec![PatternItem::Binding("p".to_string())],
-                }),
+                pattern: MdlRightValue::IMdl(IMdl::new(
+                    "mdl_push".to_string(),
+                    vec![PatternItem::Binding("p".to_string())],
+                )),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },
             forward_computed: Default::default(),

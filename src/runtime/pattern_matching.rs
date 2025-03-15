@@ -28,8 +28,9 @@ pub fn compute_instantiated_states(
 }
 
 pub fn compute_assumptions(system: &System, state: &SystemState) -> HashMap<EntityVariableKey, Value> {
-    let models = system.models.iter()
-        .filter_map(|(_, m)| m.try_instantiate_with_icst(state))
+    let models = all_assumption_models(&system)
+        .into_iter()
+        .flat_map(|m| m.try_instantiate_with_icst(state))
         .collect_vec();
     models.into_iter()
         .filter_map(|m| match m.model.right.pattern {
@@ -67,6 +68,15 @@ pub fn all_assumption_models(data: &System) -> Vec<Mdl> {
     data.models
         .iter()
         .filter(|(_, m)| m.is_assumption_model())
+        .map(|(_, m)| m)
+        .cloned()
+        .collect()
+}
+
+pub fn all_state_prediction_models(data: &System) -> Vec<Mdl> {
+    data.models
+        .iter()
+        .filter(|(_, m)| m.is_state_prediction())
         .map(|(_, m)| m)
         .cloned()
         .collect()
@@ -223,15 +233,9 @@ pub fn fill_in_pattern_with_bindings(
 ) -> Pattern {
     pattern
         .into_iter()
-        .map(|p| match &p {
-            PatternItem::Binding(b) => {
-                if let Some(v) = bindings.get(b).cloned() {
-                    PatternItem::Value(v)
-                } else {
-                    p
-                }
-            }
-            _ => p,
+        .map(|mut p| {
+            p.insert_binding_values(bindings);
+            p
         })
         .collect()
 }
@@ -251,6 +255,7 @@ pub fn extract_bindings_from_patterns(
                 }
                 else {
                     log::error!("Could not extract bindings from partially bound vec");
+                    log::error!("Binding vec [{}], value vec [{}]", pattern_with_bindings.iter().map(|p| p.to_string()).join(", "), pattern_with_values.iter().map(|p| p.to_string()).join(", "));
                     Vec::new()
                 }
             },

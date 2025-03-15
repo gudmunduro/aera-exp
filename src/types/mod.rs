@@ -158,6 +158,8 @@ impl EntityPatternValue {
         match self {
             EntityPatternValue::Binding(b) => match bindings.get(b)? {
                 Value::EntityId(id) => Some(id.clone()),
+                Value::String(id) => Some(id.clone()),
+                Value::Number(id) => Some((*id as i32).to_string()),
                 v => panic!("Binding {b} expected to have type entity, but is {v:?}")
             }
             EntityPatternValue::EntityId(id) => Some(id.clone())

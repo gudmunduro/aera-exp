@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{all_assumption_models, all_causal_models, all_req_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
+use crate::runtime::pattern_matching::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
 use crate::types::cst::Cst;
 use crate::types::models::{BoundModel, IMdl, Mdl};
 use crate::types::pattern::PatternItem;
@@ -8,32 +8,36 @@ use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
 use itertools::Itertools;
 use std::collections::HashMap;
 
-const MAX_DEPTH: usize = 20;
+const MAX_DEPTH: usize = 10;
 
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let mut instantiable_cas_mdl = Vec::new();
 
     let req_models = all_req_models(data);
     for m_req in &req_models {
-        if let Some(bound_m_req) = m_req.try_instantiate_with_icst(&data.current_state) {
+        for bound_m_req in m_req.try_instantiate_with_icst(&data.current_state) {
             let imdl = m_req.right.pattern.as_filled_in_imdl(&bound_m_req.bindings);
             instantiable_cas_mdl.push(imdl.clone());
         }
     }
 
     let casual_models = all_causal_models(data);
-    let assumption_models = all_assumption_models(data);
+    let mut state_prediction_models = all_assumption_models(data);
+    state_prediction_models.extend(all_state_prediction_models(data));
     let mut observed_goals = Vec::new();
     let (goal_req_models, _) = get_goal_requirements_for_goal(
         goal,
         &instantiable_cas_mdl,
         &casual_models,
-        &assumption_models,
+        &state_prediction_models,
         data,
         &mut observed_goals,
         0,
     );
     goal_req_models
+        .into_iter()
+        .unique()
+        .collect()
 }
 
 /// The recursive part of backward chaining
@@ -208,10 +212,14 @@ fn create_variations_of_sub_goal(
                         .iter()
                         .filter(|f| f.pattern.value.contains_binding(b))
                         .flat_map(|f| {
+                            // TODO: Was needed to support entity bindings of assumptions, check if subgoal variations are properly created in that case
+                            let Some(key) = f.pattern.entity_key(&entity_bindings) else {
+                                return Vec::new();
+                            };
                             let Some(sys_value) = system
                                 .current_state
                                 .variables
-                                .get(&f.pattern.entity_key(&entity_bindings).unwrap()) else {
+                                .get(&key) else {
                                 return Vec::new();
                             };
 
