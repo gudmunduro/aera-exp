@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::vec;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
@@ -317,8 +316,8 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("p".to_string()),
                         PatternItem::Binding("col".to_string()),
+                        PatternItem::Binding("p".to_string()),
                     ],
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -635,7 +634,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             model_id: "M_blue_cube_memory".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
-                    cst_id: "S_holding_obj_pos".to_string(),
+                    cst_id: "S_blue_cube_memory".to_string(),
                     params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),

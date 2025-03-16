@@ -1,4 +1,4 @@
-use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
+use crate::types::models::{IMdl, Mdl, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
@@ -39,6 +39,25 @@ pub fn compute_assumptions(system: &System, state: &SystemState) -> HashMap<Enti
                     .expect("Cannot fill in entity id binding of assumption");
                 let value = rhs.value.get_value_with_bindings(&m.bindings)
                     .expect("Cannot fill in all bindings of assumption");
+                Some((EntityVariableKey { entity_id, var_name: rhs.var_name }, value))
+            },
+            _ => None
+        })
+        .collect()
+}
+
+pub fn compute_state_predictions(system: &System, state: &SystemState) -> HashMap<EntityVariableKey, Value> {
+    let models = all_state_prediction_models(&system)
+        .into_iter()
+        .flat_map(|m| m.try_instantiate_with_icst(state))
+        .collect_vec();
+    models.into_iter()
+        .filter_map(|m| match m.model.right.pattern {
+            MdlRightValue::MkVal(rhs @ MkVal { assumption: false, .. }) => {
+                let entity_id = rhs.entity_id.get_id_with_bindings(&m.bindings)
+                    .expect("Cannot fill in entity id binding of state prediction");
+                let value = rhs.value.get_value_with_bindings(&m.bindings)
+                    .expect("Cannot fill in all bindings of state prediction");
                 Some((EntityVariableKey { entity_id, var_name: rhs.var_name }, value))
             },
             _ => None

@@ -1,17 +1,14 @@
-use crate::runtime::pattern_matching::{
-    combine_pattern_bindings, compare_patterns, compute_assumptions, compute_instantiated_states,
-    extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult,
-};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_patterns, compute_assumptions, compute_instantiated_states, compute_state_predictions, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::{
-    bindings_in_pattern, flatten_pattern_item_vecs, flatten_pattern_vecs, Pattern,
+    bindings_in_pattern, Pattern,
 };
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
-use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, PatternItem};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use tap::Tap;
@@ -391,7 +388,7 @@ impl BoundModel {
                     other_cmd.entity_id.get_id_with_bindings(&m.bindings),
                 ) {
                     (Some(e1), Some(e2)) => e1 == e2,
-                    ((None, _) | (_, None)) => true,
+                    (None, _) | (_, None) => true,
                 };
 
                 if cmd_name_match && params_match && entity_id_match {
@@ -424,6 +421,8 @@ impl BoundModel {
             })
             .collect_vec();
 
+        // TODO: Also look at state prediction models
+
         let mut new_state = state.clone();
         new_state.variables.extend(other_predicted_changes);
         new_state.variables.insert(
@@ -437,6 +436,9 @@ impl BoundModel {
             predicted_value,
         );
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
+        new_state
+            .variables
+            .extend(compute_state_predictions(&system, &new_state));
         new_state
             .variables
             .extend(compute_assumptions(&system, &new_state));
