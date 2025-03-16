@@ -19,12 +19,14 @@ use crate::types::value::Value;
 pub fn run_demo() {
     let mut system = System::new();
     seeds::setup_bindings_seed(&mut system);
+
     system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
     system.current_state.variables.extend(compute_assumptions(&system, &system.current_state));
+    system.current_state.instansiated_csts = compute_instantiated_states(&system, &system.current_state);
 
     log::debug!("Instantiated composite states");
     for state in system.current_state.instansiated_csts.values().flatten() {
-        log::debug!("State: {}", state.cst.cst_id);
+        log::debug!("{}", state.icst_for_cst());
     }
 
     let goal = vec![

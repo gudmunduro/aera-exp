@@ -27,6 +27,7 @@ pub struct ForwardChainNode {
 pub struct ObservedState {
     pub state: SystemState,
     pub node: Option<Rc<ForwardChainNode>>,
+    pub reachable_from_depth: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -45,10 +46,11 @@ impl ForwardChainState {
 }
 
 impl ObservedState {
-    pub fn new(state: SystemState, node: Option<Rc<ForwardChainNode>>) -> Self {
+    pub fn new(state: SystemState, node: Option<Rc<ForwardChainNode>>, reachable_from_depth: u64) -> Self {
         Self {
             state,
-            node
+            node,
+            reachable_from_depth,
         }
     }
 }
@@ -156,30 +158,36 @@ fn forward_chain_rec(
             };
 
             // Don't look at next state if prediction changes nothing or if we have already seen this state
-            let observed_state = ObservedState::new(next_state.clone(), None);
+            let observed_state = ObservedState::new(next_state.clone(), None, depth);
             if state == &next_state {
                 continue;
             }
             if forward_chain_state.observed_states.contains(&observed_state) {
-                // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
-                // If it has not been computed, then we have most likely found a cycle in the graph
-                if let Some(node) = forward_chain_state.observed_states
+                // Re-evaluate this state if we reached it at a lower depth, since goal paths could have been skipped due to depth limit
+                if forward_chain_state.observed_states.get(&observed_state).unwrap().reachable_from_depth <= depth {
+                    // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
+                    // If it has not been computed, then we have most likely found a cycle in the graph
+                    if let Some(node) = forward_chain_state.observed_states
                         .get(&observed_state)
                         .map(|s| s.node.as_ref())
                         .flatten() {
-                    results.push(Rc::new(ForwardChainNode {
-                        command,
-                        children: node.children.clone(),
-                        is_in_goal_path: node.is_in_goal_path,
-                        min_goal_depth: node.min_goal_depth,
-                    }));
-                    if node.is_in_goal_path {
-                        node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth.saturating_add(1));
-                        is_in_goal_path = true;
+                        results.push(Rc::new(ForwardChainNode {
+                            command,
+                            children: node.children.clone(),
+                            is_in_goal_path: node.is_in_goal_path,
+                            min_goal_depth: node.min_goal_depth,
+                        }));
+                        if node.is_in_goal_path {
+                            node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth.saturating_add(1));
+                            is_in_goal_path = true;
+                        }
                     }
+
+                    continue;
                 }
 
-                continue;
+                // Remove the existing observed state to insert a new one with a new depth limit
+                forward_chain_state.observed_states.remove(&observed_state);
             }
             forward_chain_state.observed_states.insert(observed_state);
 
@@ -197,7 +205,7 @@ fn forward_chain_rec(
                 min_goal_depth: min_goal_depth.saturating_add(1),
             });
 
-            let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()));
+            let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()), depth);
             forward_chain_state.observed_states.remove(&new_observed_state);
             forward_chain_state.observed_states.insert(new_observed_state);
             results.push(node);
