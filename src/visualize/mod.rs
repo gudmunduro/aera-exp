@@ -1,8 +1,9 @@
+#![allow(dead_code)]
+
 use std::ops::Deref;
 use std::rc::Rc;
 use itertools::Itertools;
 use piston_window::*;
-use piston_window::Key::Y;
 use piston_window::types::Color;
 use crate::runtime::simulation::forward::ForwardChainNode;
 
@@ -87,7 +88,7 @@ pub fn visualize_forward_chaining(tree: &Vec<Rc<ForwardChainNode>>) {
         match &event {
             Event::Input(inp, _) => match inp {
                 Input::Button(ButtonArgs{ button: Button::Keyboard(Key::Up), state: ButtonState::Press, .. }) => {
-                    let mut current_select = selected_node.last_mut().unwrap();
+                    let current_select = selected_node.last_mut().unwrap();
                     if *current_select > 0 {
                         *current_select -= 1;
                     }
@@ -97,7 +98,7 @@ pub fn visualize_forward_chaining(tree: &Vec<Rc<ForwardChainNode>>) {
                     }
                 }
                 Input::Button(ButtonArgs{ button: Button::Keyboard(Key::Down), state: ButtonState::Press, .. }) => {
-                    let mut current_select = selected_node.last_mut().unwrap();
+                    let current_select = selected_node.last_mut().unwrap();
                     *current_select += 1;
 
                     if START_NODE_Y + ((*current_select + 1) as f64 * (BRANCH_Y_MARGIN + NODE_HEIGHT)) - scroll_y > window.size().height {

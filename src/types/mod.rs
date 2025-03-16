@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use anyhow::{anyhow, bail};
-use itertools::Itertools;
 use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items};
 use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;

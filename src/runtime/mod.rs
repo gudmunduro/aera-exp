@@ -3,16 +3,13 @@ pub mod pattern_matching;
 pub mod simulation;
 mod seeds;
 
-use std::collections::HashSet;
-use std::rc::Rc;
 use std::vec;
-use itertools::Itertools;
 use crate::interfaces::tcp_interface::TcpInterface;
-use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
+use crate::types::runtime::{System, SystemState, SystemTime};
 use crate::runtime::pattern_matching::{compute_assumptions, compute_instantiated_states, state_matches_facts};
 use crate::runtime::simulation::backward::backward_chain;
-use crate::runtime::simulation::forward::{forward_chain, ForwardChainNode};
-use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::runtime::simulation::forward::forward_chain;
+use crate::types::{EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::pattern::{PatternItem};
 use crate::types::value::Value;
 

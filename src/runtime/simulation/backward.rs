@@ -246,7 +246,7 @@ fn create_variations_of_sub_goal(
 /// Ignores bindings that don't exist in the binding map (they will stay undbound)
 fn insert_bindings_into_facts(facts: &mut Vec<Fact<MkVal>>, bindings: &HashMap<String, Value>) {
     for fact in facts {
-        &fact.pattern.value.insert_binding_values(bindings);
+        fact.pattern.value.insert_binding_values(bindings);
         match &fact.pattern.entity_id {
             EntityPatternValue::Binding(b) if bindings.contains_key(b) && matches!(bindings[b], Value::EntityId(_)) => {
                 fact.pattern.entity_id =

@@ -1,12 +1,11 @@
-use std::collections::HashMap;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{PatternItem};
 use crate::types::runtime::System;
-use crate::types::value::Value;
 
+#[allow(unused)]
 pub fn setup_hand_grab_sphere_seed(system: &mut System) {
     system.create_entity("h", "hand");
     system.create_entity("b_0", "box");

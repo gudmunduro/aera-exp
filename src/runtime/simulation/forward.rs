@@ -1,16 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::runtime::pattern_matching::{all_causal_models, all_req_models, compare_imdls, state_matches_facts};
-use crate::types::models::{BoundModel, IMdl};
-use crate::types::pattern::{bindings_in_pattern, PatternItem};
+use crate::runtime::pattern_matching::{all_req_models, compare_imdls, state_matches_facts};
+use crate::types::models::{IMdl};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{Fact, MkVal};
 use itertools::Itertools;
-use crate::runtime::print_all_variables;
-use crate::types::value::Value;
-use crate::visualize;
-use crate::visualize::visualize_forward_chaining;
 
 const MAX_FWD_CHAIN_DEPTH: u64 = 50;
 
