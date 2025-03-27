@@ -7,7 +7,7 @@ use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::{Fact, MkVal};
 use itertools::Itertools;
 
-const MAX_FWD_CHAIN_DEPTH: u64 = 50;
+const MAX_FWD_CHAIN_DEPTH: u64 = 20;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]

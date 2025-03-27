@@ -5,7 +5,7 @@ mod seeds;
 
 use std::vec;
 use crate::interfaces::tcp_interface::TcpInterface;
-use crate::types::runtime::{System, SystemState, SystemTime};
+use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
 use crate::runtime::pattern_matching::{compute_assumptions, compute_instantiated_states, state_matches_facts};
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
@@ -64,7 +64,7 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("2".to_string()),
                     var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::Number(200.0), Value::Number(200.0), Value::Number(0.0), Value::Number(45.0)])),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-107.0), Value::Number(180.0)])),
                     assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
@@ -86,7 +86,7 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("1".to_string()),
                     var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::Number(260.0), Value::Number(0.0), Value::Number(0.0), Value::Number(45.0)])),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-90.0), Value::Number(180.0)])),
                     assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
@@ -156,7 +156,13 @@ pub fn run_with_tcp() {
             log::info!("Executed command {:?}", &path[0]);
         }
         else {
-            log::info!("No action found with forward chaining")
+            log::info!("No action found with forward chaining");
+            tcp_interface.execute_command(
+                &RuntimeCommand {
+                    name: "no_action".to_string(),
+                    entity_id: "sys".to_string(),
+                    params: Vec::new(),
+                }).expect("Failed to execute command with TCP");
         }
     }
 }
