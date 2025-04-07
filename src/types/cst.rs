@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{compare_patterns, extract_bindings_from_patterns, pattern_item_matches_value_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, pattern_item_matches_value_with_bindings, PatternMatchResult};
 use crate::types::pattern::{Pattern};
 use crate::types::runtime::{System, SystemState};
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, PatternItem};
@@ -139,6 +139,16 @@ impl ICst {
             .collect();
 
         cst
+    }
+
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &ICst, allow_unbound: bool, allow_different_length: bool,) -> PatternMatchResult {
+        if self.cst_id == other.cst_id
+            && compare_patterns(&fill_in_pattern_with_bindings(self.params.clone(), bindings), &other.params, allow_unbound, allow_different_length) {
+            PatternMatchResult::True(extract_bindings_from_patterns(&self.params, &other.params))
+        }
+        else {
+            PatternMatchResult::False
+        }
     }
 }
 

@@ -64,7 +64,7 @@ pub fn run_with_tcp() {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::EntityId("2".to_string()),
                     var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-107.0), Value::Number(180.0)])),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-107.0), Value::Number(45.0)])),
                     assumption: false,
                 },
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)

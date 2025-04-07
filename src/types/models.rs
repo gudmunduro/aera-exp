@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_patterns, compute_assumptions, compute_instantiated_states, compute_state_predictions, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_imdls, compare_patterns, compute_assumptions, compute_instantiated_states, compute_state_predictions, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::{
@@ -6,11 +6,12 @@ use crate::types::pattern::{
 };
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
-use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem, TimePatternRange, TimePatternValue};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::panic::resume_unwind;
 use tap::Tap;
 
 #[derive(Clone, Debug)]
@@ -29,6 +30,7 @@ impl Mdl {
             MdlLeftValue::ICst(cst) => bindings_in_pattern(&cst.params),
             MdlLeftValue::Command(cmd) => cmd.get_bindings(),
             MdlLeftValue::MkVal(mk_val) => mk_val.get_bindings(),
+            MdlLeftValue::IMdl(imdl) => bindings_in_pattern(&imdl.params)
         };
         let params_in_computed = self
             .forward_computed
@@ -99,7 +101,7 @@ impl Mdl {
             Mdl {
                 left:
                     Fact {
-                        pattern: MdlLeftValue::Command(_),
+                        pattern: MdlLeftValue::Command(_) | MdlLeftValue::IMdl(_),
                         ..
                     },
                 right:
@@ -107,6 +109,20 @@ impl Mdl {
                         pattern: MdlRightValue::MkVal(_),
                         ..
                     },
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_reuse_model(&self) -> bool {
+        match self {
+            Mdl {
+                left:
+                Fact {
+                    pattern: MdlLeftValue::IMdl(_),
+                    ..
+                },
                 ..
             } => true,
             _ => false,
@@ -175,11 +191,19 @@ impl Mdl {
             _ => false,
         }
     }
+
+    pub fn as_bound_model(&self) -> BoundModel {
+        BoundModel {
+            model: self.clone(),
+            bindings: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum MdlLeftValue {
     ICst(ICst),
+    IMdl(IMdl),
     Command(Command),
     MkVal(MkVal),
 }
@@ -203,6 +227,55 @@ impl MdlLeftValue {
         match self {
             MdlLeftValue::MkVal(mk_val) => mk_val,
             _ => panic!("Lhs needs to be mk.val in model"),
+        }
+    }
+
+    /// Pattern match two model lhs values and extract bindings
+    /// `self` is expected to be unmodified from the model as
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &MdlLeftValue) -> PatternMatchResult {
+        use MdlLeftValue::*;
+        match (self, other) {
+            (ICst(a), ICst(b)) => {
+                a.matches(bindings, b, true, false)
+            }
+            (Command(a), Command(b)) => {
+                a.matches(bindings, b, true, false)
+            }
+            (MkVal(a), MkVal(b)) => {
+                a.matches(bindings, b, true)
+            }
+            (IMdl(a), IMdl(b)) => {
+                a.matches(bindings, b, true, false)
+            }
+            (_, _) => PatternMatchResult::False
+        }
+    }
+
+    pub fn filled_in(&self, bindings: &HashMap<String, Value>) -> MdlLeftValue {
+        use MdlLeftValue::*;
+        match self {
+            ICst(icst) => {
+                let mut icst = icst.clone();
+                icst.params = fill_in_pattern_with_bindings(icst.params, bindings);
+                ICst(icst)
+            }
+            Command(command) => {
+                let mut command = command.clone();
+                command.entity_id.insert_binding_value(bindings);
+                command.params = fill_in_pattern_with_bindings(command.params, bindings);
+                Command(command)
+            }
+            MkVal(mk_val) => {
+                let mut mk_val = mk_val.clone();
+                mk_val.entity_id.insert_binding_value(bindings);
+                mk_val.value.insert_binding_values(bindings);
+                MkVal(mk_val)
+            }
+            IMdl(imdl) => {
+                let mut imdl = imdl.clone();
+                imdl.params = fill_in_pattern_with_bindings(imdl.params.clone(), bindings);
+                IMdl(imdl)
+            }
         }
     }
 }
@@ -233,6 +306,44 @@ impl MdlRightValue {
             _ => panic!("Rhs needs to be mk.val in model"),
         }
     }
+
+    /// Pattern match two model rhs values and extract bindings
+    /// `self` is expected to be unmodified from the model as
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &MdlRightValue) -> PatternMatchResult {
+        use MdlRightValue::*;
+        match (self, other) {
+            (IMdl(a), IMdl(b)) => {
+                a.matches(bindings, b, true, false)
+            }
+            (MkVal(a), MkVal(b)) => {
+                a.matches(bindings, b, true)
+            }
+            (_, _) => PatternMatchResult::False
+        }
+    }
+
+    pub fn filled_in(&self, bindings: &HashMap<String, Value>) -> MdlRightValue {
+        use MdlRightValue::*;
+        match self {
+            IMdl(imdl) => {
+                let mut imdl = imdl.clone();
+                imdl.params = fill_in_pattern_with_bindings(imdl.params, bindings);
+                IMdl(imdl)
+            }
+            MkVal(mk_val) => {
+                let mut mk_val = mk_val.clone();
+                mk_val.entity_id.insert_binding_value(bindings);
+                mk_val.value.insert_binding_values(bindings);
+                MkVal(mk_val)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum AbductionResult {
+    SubGoal(Vec<Fact<MkVal>>, Option<String>, IMdl),
+    IMdl(IMdl),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -294,6 +405,22 @@ impl IMdl {
         self.fwd_guard_bindings.extend(imdl.fwd_guard_bindings);
         self
     }
+
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &IMdl, allow_unbound: bool, allow_different_length: bool,) -> PatternMatchResult {
+        if self.model_id == other.model_id
+            && compare_patterns(&fill_in_pattern_with_bindings(self.params.clone(), bindings), &other.params, allow_unbound, allow_different_length) {
+            PatternMatchResult::True(extract_bindings_from_patterns(&self.params, &other.params))
+        }
+        else {
+            PatternMatchResult::False
+        }
+    }
+
+    pub fn filled_in(&self, bindings: &HashMap<String, Value>) -> IMdl {
+        let mut imdl = self.clone();
+        imdl.params = fill_in_pattern_with_bindings(imdl.params.clone(), bindings);
+        imdl
+    }
 }
 
 // Hacky Eq implementation using partial eq function
@@ -351,80 +478,114 @@ impl BoundModel {
         IMdl::with_fwd_guards(self.model.model_id.clone(), param_pattern, fwd_guard_bindings)
     }
 
+    pub fn deduce(&self, input: &Fact<MdlLeftValue>) -> Option<MdlRightValue> {
+        let PatternMatchResult::True(mut bindings) = self.model.left.pattern.matches(&self.bindings, &input.pattern) else {
+            return None;
+        };
+        // Combine bindings from input facts and those that were already in the model
+        bindings.extend(self.bindings.clone());
+        let mut model = BoundModel {
+            model: self.model.clone(),
+            bindings
+        };
+        model.compute_forward_bindings();
+
+        Some(model.filled_in_rhs())
+    }
+
+    pub fn abduce(&self, input: &Fact<MdlRightValue>, system: &System) -> Option<AbductionResult> {
+        let PatternMatchResult::True(mut bindings) = self.model.right.pattern.matches(&self.bindings, &input.pattern) else {
+            return None;
+        };
+        // Combine bindings from input facts and those that were already in the model
+        bindings.extend(self.bindings.clone());
+        let mut model = BoundModel {
+            model: self.model.clone(),
+            bindings
+        };
+        model.compute_backward_bindings();
+
+        match &self.model.left.pattern {
+            MdlLeftValue::ICst(icst) => {
+                let mut icst = icst.clone();
+                icst.params = fill_in_pattern_with_bindings(icst.params, &model.bindings);
+                let subgoal_cst = icst.expand_cst(&system);
+                Some(AbductionResult::SubGoal(subgoal_cst.facts, Some(icst.cst_id.to_string()), model.imdl_for_model()))
+            }
+            MdlLeftValue::MkVal(mk_val) => {
+                let mut mk_val = mk_val.clone();
+                mk_val.entity_id.insert_binding_value(&model.bindings);
+                mk_val.value.insert_binding_values(&model.bindings);
+                Some(AbductionResult::SubGoal(vec![self.model.left.with_pattern(mk_val)], None, model.imdl_for_model()))
+            }
+            _ => {
+                Some(AbductionResult::IMdl(model.imdl_for_model()))
+            }
+        }
+    }
+
+    pub fn filled_in_lhs(&self) -> MdlLeftValue {
+        self.model.left.pattern.filled_in(&self.bindings)
+    }
+
+    pub fn filled_in_rhs(&self) -> MdlRightValue {
+        self.model.right.pattern.filled_in(&self.bindings)
+    }
+
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
     /// At the moment this does not take into account changes that other models predict will take place when the same action is taken
     pub fn predict_state_change(
         &self,
         state: &SystemState,
-        other_casual_models: &Vec<&BoundModel>,
+        instantiated_casual_models: &Vec<BoundModel>,
         system: &System,
     ) -> Option<SystemState> {
-        let MdlLeftValue::Command(cmd) = &self.model.left.pattern else {
-            return None;
-        };
         let MdlRightValue::MkVal(mk_val) = &self.model.right.pattern else {
             return None;
         };
+        // If this is a reuse model, call predict state change on the reused model (the command model)
+        // Prediction from reuse models will also be included
+        if self.model.is_reuse_model() {
+            return self.get_reused_model(instantiated_casual_models, system)
+                .map(|m| m.predict_state_change(state, instantiated_casual_models, system))
+                .flatten();
+        }
         let Some(predicted_value) = mk_val
             .value
             .get_value_with_bindings(&self.bindings) else {
             return None;
         };
-        let mut cmd = cmd.clone();
-        cmd.params = fill_in_pattern_with_bindings(cmd.params, &self.bindings);
 
-        // Find all other models that predict a state change based on the exact same command, and use those predictions as well
-        let other_predicted_changes = other_casual_models
+        let self_imdl = self.imdl_for_model();
+        let imdl_lhs = Fact::new(MdlLeftValue::IMdl(self_imdl), TimePatternRange::wildcard());
+        let other_state_changes = instantiated_casual_models
             .iter()
-            .filter_map(|m| {
-                let mut other_cmd = m.model.left.pattern.as_command().clone();
-                other_cmd.params = fill_in_pattern_with_bindings(other_cmd.params, &m.bindings);
-
-                let cmd_name_match = cmd.name == other_cmd.name;
-                let params_match = compare_patterns(&cmd.params, &other_cmd.params, true, true);
-                let entity_id_match = match (
-                    cmd.entity_id.get_id_with_bindings(&self.bindings),
-                    other_cmd.entity_id.get_id_with_bindings(&m.bindings),
-                ) {
-                    (Some(e1), Some(e2)) => e1 == e2,
-                    (None, _) | (_, None) => true,
-                };
-
-                if cmd_name_match && params_match && entity_id_match {
-                    let mut m = (*m).clone();
-                    // Get bindings from the command in the "main" model and add them to this model
-                    let additional_bindings = extract_bindings_from_patterns(
-                        &other_cmd.params,
-                        &cmd.params,
-                    );
-                    m.bindings.extend(additional_bindings);
-
-                    m.compute_forward_bindings();
-
-                    Some(m)
-                } else {
-                    None
+            .filter_map(|m| m.deduce(&imdl_lhs))
+            .filter_map(|rhs| {
+                match rhs {
+                    MdlRightValue::MkVal(mk_val) => {
+                        if let (Some(entity_id), Some(value)) = (
+                            mk_val.entity_id.get_id_with_bindings(&HashMap::new()),
+                            mk_val.value.get_value_with_bindings(&HashMap::new())
+                        ) {
+                            Some((EntityVariableKey::new(&entity_id, &mk_val.var_name), value))
+                        }
+                        else {
+                            log::error!("Reuse model produced unbound variables during forward chaining. Rhs: {mk_val}");
+                            None
+                        }
+                    }
+                    MdlRightValue::IMdl(imdl) => {
+                        log::error!("Found reuse model with rhs {imdl} when expecting state change (mk.val)");
+                        None
+                    }
                 }
-            })
-            .filter_map(|m| {
-                let mk_val = m.model.right.pattern.as_mk_val();
-                let entity_id = mk_val.entity_id.get_id_with_bindings(&m.bindings)?;
-                let value = mk_val.value.get_value_with_bindings(&m.bindings)?;
-                Some((
-                    EntityVariableKey {
-                        entity_id,
-                        var_name: mk_val.var_name.to_owned(),
-                    },
-                    value,
-                ))
             })
             .collect_vec();
 
-        // TODO: Also look at state prediction models
-
         let mut new_state = state.clone();
-        new_state.variables.extend(other_predicted_changes);
+        new_state.variables.extend(other_state_changes);
         new_state.variables.insert(
             EntityVariableKey::new(
                 &mk_val
@@ -448,15 +609,58 @@ impl BoundModel {
         Some(new_state)
     }
 
-    /// Add bindings from `bindings` for variables which were not bound before
-    pub fn fill_missing_bindings(&mut self, bindings: &HashMap<String, Value>) {
-        self.bindings.extend(
-            bindings
-                .iter()
-                .filter(|(b, _)| !self.bindings.contains_key(*b))
-                .map(|(b, v)| (b.clone(), v.clone()))
-                .collect_vec(),
-        )
+    /// For casual model, gets the command that would be executed to cause the predicted state change
+    /// That is either lhs or the lhs of a model that is being reused
+    pub fn get_casual_model_command(&self, instantiated_casual_models: &Vec<BoundModel>, system: &System) -> Option<Command> {
+        use MdlLeftValue::*;
+        match &self.model.left.pattern {
+            Command(command) => {
+                let mut command = command.clone();
+                command.params = fill_in_pattern_with_bindings(command.params, &self.bindings);
+                command.entity_id.insert_binding_value(&self.bindings);
+                Some(command)
+            }
+            IMdl(imdl) => {
+                let imdl = imdl.filled_in(&self.bindings);
+                instantiated_casual_models
+                    .iter()
+                    .filter_map(|m| {
+                        let instantiated_imdl = m.imdl_for_model();
+                        if compare_imdls(&imdl, &instantiated_imdl, true, false) {
+                            let reused_model = imdl.clone().merge_with(instantiated_imdl).instantiate(&HashMap::new(), system);
+                            reused_model.get_casual_model_command(&instantiated_casual_models, &system)
+                        }
+                        else {
+                            None
+                        }
+                    })
+                    .next()
+            }
+            _ => None
+        }
+    }
+
+    pub fn get_reused_model(&self, instantiated_casual_models: &Vec<BoundModel>, system: &System) -> Option<BoundModel> {
+        use MdlLeftValue::*;
+        match &self.model.left.pattern {
+            IMdl(imdl) => {
+                let imdl = imdl.filled_in(&self.bindings);
+                instantiated_casual_models
+                    .iter()
+                    .filter_map(|m| {
+                        let instantiated_imdl = m.imdl_for_model();
+                        if compare_imdls(&imdl, &instantiated_imdl, true, false) {
+                            let reused_model = imdl.clone().merge_with(instantiated_imdl).instantiate(&HashMap::new(), system);
+                            Some(reused_model)
+                        }
+                        else {
+                            None
+                        }
+                    })
+                    .next()
+            }
+            _ => None
+        }
     }
 
     pub fn compute_forward_bindings(&mut self) {

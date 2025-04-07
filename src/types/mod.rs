@@ -1,6 +1,10 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use anyhow::{anyhow, bail};
-use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items};
+use piston_window::Key::P;
+use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::types::cst::ICst;
+use crate::types::models::IMdl;
 use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;
 use crate::types::value::Value;
@@ -45,6 +49,16 @@ impl Command {
             bindings_in_pattern(&self.params)
         }
     }
+
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &Command, allow_unbound: bool, allow_different_length: bool,) -> PatternMatchResult {
+        if self.name == other.name
+            && compare_patterns(&fill_in_pattern_with_bindings(self.params.clone(), bindings), &other.params, allow_unbound, allow_different_length) {
+            PatternMatchResult::True(extract_bindings_from_patterns(&self.params, &other.params))
+        }
+        else {
+            PatternMatchResult::False
+        }
+    }
 }
 
 pub trait MatchesFact<T: Clone> {
@@ -58,6 +72,13 @@ pub struct Fact<T: Clone> {
 }
 
 impl<T: Clone> Fact<T> {
+    pub fn new(pattern: T, time_range: TimePatternRange) -> Fact<T> {
+        Fact {
+            pattern,
+            time_range
+        }
+    }
+
     pub fn with_pattern<T2: Clone>(&self, pattern: T2) -> Fact<T2> {
         Fact {
             pattern,
@@ -92,6 +113,29 @@ impl MkVal {
         matches_entity && self.var_name == mk_val.var_name && compare_pattern_items(&self.value, &mk_val.value, true)
     }
 
+    pub fn matches(&self, bindings: &HashMap<String, Value>, other: &MkVal, allow_unbound: bool) -> PatternMatchResult {
+        let matches_var = self.var_name == other.var_name;
+        let matches_entity = match (&self.entity_id, &other.entity_id) {
+            (EntityPatternValue::Binding(_), _) | (_, EntityPatternValue::Binding(_)) => allow_unbound,
+            (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => e1 == e2
+        };
+        // Early return optimization since compare patterns in expensive
+        if !matches_var || !matches_entity {
+            return PatternMatchResult::False;
+        }
+
+        let mut value = self.value.clone();
+        value.insert_binding_values(bindings);
+
+        if self.var_name == other.var_name
+            && compare_pattern_items(&value, &other.value, allow_unbound) {
+            PatternMatchResult::True(extract_bindings_from_patterns(&self.value.pattern(), &other.value.pattern()))
+        }
+        else {
+            PatternMatchResult::False
+        }
+    }
+
     pub fn entity_key(&self, bindings: &HashMap<String, Value>) -> Option<EntityVariableKey> {
         Some(EntityVariableKey {
             entity_id: self.entity_id.get_id_with_bindings(bindings)?,
@@ -109,6 +153,20 @@ impl MkVal {
     }
 }
 
+impl Display for MkVal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "(mk.val {} {} {})",
+            &self.entity_id,
+            &self.var_name,
+            &self.value,
+        )?;
+
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimePatternRange {
     pub from: TimePatternValue,
@@ -118,6 +176,10 @@ pub struct TimePatternRange {
 impl TimePatternRange {
     pub fn new(from: TimePatternValue, to: TimePatternValue) -> TimePatternRange {
         TimePatternRange { from, to }
+    }
+
+    pub fn wildcard() -> TimePatternRange {
+        TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
     }
 }
 
@@ -180,6 +242,15 @@ impl EntityPatternValue {
                 }
             }
             EntityPatternValue::EntityId(_) => {}
+        }
+    }
+}
+
+impl Display for EntityPatternValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EntityPatternValue::Binding(b) => write!(f, "{b}:"),
+            EntityPatternValue::EntityId(id) => write!(f, "{id}")
         }
     }
 }

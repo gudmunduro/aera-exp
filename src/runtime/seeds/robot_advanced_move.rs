@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::vec;
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};
@@ -17,14 +18,14 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
     // Hand movement
 
     system.csts.insert(
-        "S_move_h".to_string(),
+        "S_move".to_string(),
         Cst {
-            cst_id: "S_move_h".to_string(),
+            cst_id: "S_move".to_string(),
             facts: vec![Fact {
                 pattern: MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "position".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Binding("pw".to_string())]),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
 
                     assumption: false,
                 },
@@ -35,16 +36,17 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
     );
 
     system.models.insert(
-        "mdl_move_h_req".to_string(),
+        "mdl_move_req".to_string(),
         Mdl {
-            model_id: "mdl_move_h_req".to_string(),
+            model_id: "mdl_move_req".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::ICst(ICst {
-                    cst_id: "S_move_h".to_string(),
+                    cst_id: "S_move".to_string(),
                     params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("px".to_string()),
                         PatternItem::Binding("py".to_string()),
+                        PatternItem::Binding("pz".to_string()),
                         PatternItem::Binding("pw".to_string()),
                     ],
                 }),
@@ -52,13 +54,15 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             },
             right: Fact {
                 pattern: MdlRightValue::IMdl(IMdl::new(
-                    "mdl_move_h".to_string(),
+                    "mdl_move".to_string(),
                     vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("dpx".to_string()),
                         PatternItem::Binding("dpy".to_string()),
+                        PatternItem::Binding("dpz".to_string()),
                         PatternItem::Binding("px".to_string()),
                         PatternItem::Binding("py".to_string()),
+                        PatternItem::Binding("pz".to_string()),
                         PatternItem::Binding("pw".to_string()),
                     ],
                 )),
@@ -71,9 +75,9 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
     );
 
     system.models.insert(
-        "mdl_move_h".to_string(),
+        "mdl_move".to_string(),
         Mdl {
-            model_id: "mdl_move_h".to_string(),
+            model_id: "mdl_move".to_string(),
             left: Fact {
                 pattern: MdlLeftValue::Command(Command {
                     name: "move".to_string(),
@@ -81,7 +85,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     params: vec![PatternItem::Vec(vec![
                         PatternItem::Binding("dpx".to_string()),
                         PatternItem::Binding("dpy".to_string()),
-                        PatternItem::Value(Value::Number(0.0)),
+                        PatternItem::Binding("dpz".to_string()),
                         PatternItem::Value(Value::Number(0.0)),
                     ])],
                 }),
@@ -91,7 +95,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                 pattern: MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "position".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Binding("pw".to_string())]),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string()), PatternItem::Binding("npz".to_string()), PatternItem::Binding("pw".to_string())]),
                     assumption: false,
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -109,6 +113,13 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("dpy".to_string()))),
                 ),
                 ),
+                (
+                    "npz".to_string(),
+                    Function::Add(
+                        Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("dpz".to_string()))),
+                    ),
+                ),
             ]
                 .into(),
             backward_computed: [(
@@ -124,107 +135,15 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
                     Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
                 ),
-            )].into(),
-            confidence: 1.0,
-        },
-    );
-
-    system.csts.insert(
-        "S_move_v".to_string(),
-        Cst {
-            cst_id: "S_move_v".to_string(),
-            facts: vec![Fact {
-                pattern: MkVal {
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
-
-                    assumption: false,
-                },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            }],
-            entities: vec![EntityDeclaration::new("h", "hand")],
-        },
-    );
-
-    system.models.insert(
-        "mdl_move_v_req".to_string(),
-        Mdl {
-            model_id: "mdl_move_v_req".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::ICst(ICst {
-                    cst_id: "S_move_v".to_string(),
-                    params: vec![
-                        PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
-                    ],
-                }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl::new(
-                    "mdl_move_v".to_string(),
-                    vec![
-                        PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("dpz".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pw".to_string()),
-                    ],
-                )),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            forward_computed: Default::default(),
-            backward_computed: Default::default(),
-            confidence: 1.0,
-        },
-    );
-
-    system.models.insert(
-        "mdl_move_v".to_string(),
-        Mdl {
-            model_id: "mdl_move_v".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::Command(Command {
-                    name: "move".to_string(),
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    params: vec![PatternItem::Vec(vec![
-                        PatternItem::Value(Value::Number(0.0)),
-                        PatternItem::Value(Value::Number(0.0)),
-                        PatternItem::Binding("dpz".to_string()),
-                        PatternItem::Value(Value::Number(0.0)),
-                    ])],
-                }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::MkVal(MkVal {
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    var_name: "position".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("npz".to_string()), PatternItem::Binding("pw".to_string())]),
-                    assumption: false,
-                }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            forward_computed: [(
-                "npz".to_string(),
-                Function::Add(
-                    Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
-                    Box::new(Function::Value(PatternItem::Binding("dpz".to_string()))),
                 ),
-            )]
-                .into(),
-            backward_computed: [(
-                "dpz".to_string(),
-                Function::Sub(
-                    Box::new(Function::Value(PatternItem::Binding("npz".to_string()))),
-                    Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
+                (
+                    "dpz".to_string(),
+                    Function::Sub(
+                        Box::new(Function::Value(PatternItem::Binding("npz".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
+                    ),
                 ),
-            )].into(),
+            ].into(),
             confidence: 1.0,
         },
     );
@@ -598,10 +517,19 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
         Mdl {
             model_id: "M_cube_cam_pos".to_string(),
             left: Fact {
-                pattern: MdlLeftValue::Command(Command {
-                    name: "move".to_string(),
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    params: vec![PatternItem::Vec(vec![PatternItem::Binding("dx".to_string()), PatternItem::Binding("dy".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Value(Value::Number(0.0))])],
+                pattern: MdlLeftValue::IMdl(IMdl {
+                    model_id: "mdl_move".to_string(),
+                    params: vec![
+                        PatternItem::Binding("h".to_string()),
+                        PatternItem::Binding("dx".to_string()),
+                        PatternItem::Binding("dy".to_string()),
+                        PatternItem::Value(Value::Number(0.0)),
+                        PatternItem::Any,
+                        PatternItem::Any,
+                        PatternItem::Any,
+                        PatternItem::Any,
+                    ],
+                    fwd_guard_bindings: HashMap::new(),
                 }),
                 time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             },

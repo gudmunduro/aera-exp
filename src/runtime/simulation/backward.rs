@@ -1,12 +1,13 @@
 use crate::runtime::pattern_matching::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
 use crate::types::cst::Cst;
-use crate::types::models::{BoundModel, IMdl, Mdl};
+use crate::types::models::{AbductionResult, BoundModel, IMdl, Mdl, MdlRightValue};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
-use crate::types::{EntityPatternValue, Fact, MatchesFact, MkVal};
+use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MatchesFact, MkVal, TimePatternRange};
 use itertools::Itertools;
 use std::collections::HashMap;
+use piston_window::math::sub;
 
 const MAX_DEPTH: usize = 10;
 
@@ -57,43 +58,35 @@ fn get_goal_requirements_for_goal(
     let mut reached_current_state = false;
     let mut goal_requirements: Vec<IMdl> = Vec::new();
 
-    let goal_models = casual_models
+    let abduction_results = casual_models
         .iter()
         .chain(assumption_models.iter())
-        // Find all casual models where rhs matches a fact from the goal
-        .filter(|m| {
-            goal.iter().any(|goal_val| {
-                let rhs_fact = Fact {
-                    pattern: m.right.pattern.as_mk_val().clone(),
-                    time_range: m.right.time_range.clone(),
-                };
-                rhs_fact.matches_fact(goal_val)
-            })
+        // Find and backward chain from all casual models where rhs matches a fact from the goal
+        .flat_map(|m| {
+            let bm = m.as_bound_model();
+            goal.iter()
+                .filter_map(|goal_val| {
+                    bm.abduce(&goal_val.with_pattern(MdlRightValue::MkVal(goal_val.pattern.clone())), data)
+                })
+                .collect_vec()
         })
-        // Find and insert values from the goal that are supposed to be assigned to mk.val on rhs of casual model that matches the goal
-        .flat_map(|c_goal_model| {
-            insert_bindings_for_rhs_from_goal(
-                &BoundModel {
-                    model: c_goal_model.clone(),
-                    bindings: HashMap::new(),
-                },
-                goal,
-            )
-        })
-        .map(|m| m.imdl_for_model())
         .collect_vec();
 
-    for goal_model in goal_models {
+    for abduction_result in abduction_results {
+        let goal_model_imdl = match &abduction_result {
+            AbductionResult::SubGoal(_, _, imdl) | AbductionResult::IMdl(imdl) => imdl
+        };
+
         // If the casual model can be reached directly from the current state, then we don't have to look further back
         if instantiable_cas_mdl.iter().any(|imdl_val| {
-            compare_imdls(imdl_val, &goal_model, true, true)
+            compare_imdls(imdl_val, &goal_model_imdl, true, true)
         }) {
             reached_current_state = true;
-            goal_requirements.push(goal_model.clone());
+            goal_requirements.push(goal_model_imdl.clone());
             continue;
         }
 
-        let goal_model_bm = goal_model.instantiate(&HashMap::new(), &data);
+        let goal_model_bm = goal_model_imdl.instantiate(&HashMap::new(), &data);
 
         // Skip this casual model if rhs matches the current state.
         // We don't have to consider the part of the goal that ia already satisfied in the current state
@@ -115,31 +108,33 @@ fn get_goal_requirements_for_goal(
 
         if goal_model_bm.model.is_casual_model() {
             // Add this casual model as a goal requirement to use during forward chaining
-            goal_requirements.push(goal_model.clone());
+            goal_requirements.push(goal_model_imdl.clone());
         }
 
-        let sub_goal_models = if goal_model_bm.model.is_casual_model() {
-            // Requirement models where rhs matches casual model,
-            // with all bindings that we got from backward chaining (from casual model) included
-            all_req_models(data)
-                .into_iter()
-                .filter(|m| compare_imdls(&m.right.pattern.as_imdl(), &goal_model, true, true))
-                .map(|m| m.backward_chain_known_bindings_from_imdl(&goal_model))
-                .collect_vec()
-        }
-        else {
-            // Reuse same model instead of backward chaining if it is an assumption model
-            vec![goal_model_bm]
+        let sub_goals = match abduction_result {
+            AbductionResult::SubGoal(sub_goal, cst_id, _) => {
+                vec![(sub_goal, cst_id)]
+            }
+            AbductionResult::IMdl(imdl) => {
+                let imdl_fact = Fact::new(MdlRightValue::IMdl(imdl.clone()), TimePatternRange::wildcard());
+                all_req_models(data)
+                    .into_iter()
+                    .filter_map(|m| m.as_bound_model().abduce(&imdl_fact, data))
+                    .map(|res| match res {
+                        AbductionResult::SubGoal(sub_goal, cst_id, _) => (sub_goal, cst_id),
+                        AbductionResult::IMdl(imdl) => {
+                            panic!("Model chain is too long, got {imdl} when expecting subgoal (icst or mk.val) lhs");
+                        }
+                    })
+                    .collect()
+            }
         };
 
         // Create sub goals from the requirement models
-        for g_req in &sub_goal_models {
-            let sub_goal_cst = g_req.model.left.pattern.as_icst().expand_cst(data);
-            let mut sub_goal = sub_goal_cst.facts.clone();
-
-            insert_bindings_into_facts(&mut sub_goal, &g_req.bindings);
-
-            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_cst, data);
+        for (sub_goal, sub_goal_cst_id) in sub_goals {
+            let sub_goal_entities = sub_goal_cst_id
+                .map(|cst_id| &data.csts.get(&cst_id).unwrap().entities);
+            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, data);
             all_sub_goals.insert(0, sub_goal);
 
             for sub_goal in &all_sub_goals {
@@ -177,20 +172,21 @@ fn get_goal_requirements_for_goal(
 /// one with p as the current pos of the hand and another with p as the current pos of the obj
 fn create_variations_of_sub_goal(
     goal: &Vec<Fact<MkVal>>,
-    goal_cst: Cst,
+    sub_goal_entities: Option<&Vec<EntityDeclaration>>,
     system: &System,
 ) -> Vec<Vec<Fact<MkVal>>> {
     let goal_cst = Cst {
         cst_id: "".to_string(),
         facts: goal.clone(),
         // Keep entity binding declarations for entities which have not been filled in
-        entities: goal_cst
-            .entities
+        entities: sub_goal_entities
+            .unwrap_or(&Vec::new())
             .into_iter()
             .filter(|e| {
                 goal.iter()
                     .any(|f| f.pattern.entity_id.is_binding(&e.binding))
             })
+            .map(|e| e.to_owned())
             .collect(),
     };
     let bindings = goal_cst.binding_params();
@@ -240,63 +236,4 @@ fn create_variations_of_sub_goal(
                 })
         })
         .collect()
-}
-
-/// Turn bindings into values in facts based on a binding map
-/// Ignores bindings that don't exist in the binding map (they will stay undbound)
-fn insert_bindings_into_facts(facts: &mut Vec<Fact<MkVal>>, bindings: &HashMap<String, Value>) {
-    for fact in facts {
-        fact.pattern.value.insert_binding_values(bindings);
-        match &fact.pattern.entity_id {
-            EntityPatternValue::Binding(b) if bindings.contains_key(b) && matches!(bindings[b], Value::EntityId(_)) => {
-                fact.pattern.entity_id =
-                    EntityPatternValue::EntityId(bindings[b].as_entity_id().to_owned());
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Get bindings from the goal and insert them into the model
-/// If rhs of the model matches multiple facts of the goal,
-/// then multiple models will be created, one for each
-fn insert_bindings_for_rhs_from_goal(
-    casual_model: &BoundModel,
-    goal: &Vec<Fact<MkVal>>,
-) -> Vec<BoundModel> {
-    let mut result = Vec::new();
-    for goal_fact in goal {
-        let mk_val = casual_model.model.right.pattern.as_mk_val();
-        let matches_rhs = match (&goal_fact.pattern.entity_id, &mk_val.entity_id) {
-            (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => {
-                e1 == e2 && goal_fact.pattern.var_name == mk_val.var_name
-            }
-            // If either is a binding, then we have no way of knowing if the entity matches or not (as it depends on the req model) so we assume that it is a match
-            _ => goal_fact.pattern.var_name == mk_val.var_name,
-        };
-        if !matches_rhs {
-            continue;
-        }
-        let mut casual_model = casual_model.clone();
-
-        let mk_val_bindings = extract_bindings_from_patterns(&mk_val.value.pattern(), &goal_fact.pattern.value.pattern());
-        casual_model.bindings.extend(mk_val_bindings);
-
-        if let EntityPatternValue::Binding(binding) = &mk_val.entity_id {
-            // Same with entity id
-            match &goal_fact.pattern.entity_id {
-                EntityPatternValue::EntityId(entity_id) => {
-                    casual_model
-                        .bindings
-                        .insert(binding.to_owned(), Value::EntityId(entity_id.clone()));
-                }
-                _ => {}
-            }
-        }
-
-        casual_model.compute_backward_bindings();
-        result.push(casual_model.clone());
-    }
-
-    result
 }
