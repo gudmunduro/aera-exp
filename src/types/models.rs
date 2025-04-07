@@ -478,7 +478,7 @@ impl BoundModel {
         IMdl::with_fwd_guards(self.model.model_id.clone(), param_pattern, fwd_guard_bindings)
     }
 
-    pub fn deduce(&self, input: &Fact<MdlLeftValue>) -> Option<MdlRightValue> {
+    pub fn deduce(&self, input: &Fact<MdlLeftValue>) -> Option<Fact<MdlRightValue>> {
         let PatternMatchResult::True(mut bindings) = self.model.left.pattern.matches(&self.bindings, &input.pattern) else {
             return None;
         };
@@ -490,10 +490,14 @@ impl BoundModel {
         };
         model.compute_forward_bindings();
 
-        Some(model.filled_in_rhs())
+        Some(self.model.right.with_pattern(model.filled_in_rhs()))
     }
 
     pub fn abduce(&self, input: &Fact<MdlRightValue>, system: &System) -> Option<AbductionResult> {
+        // TODO: Implement abduction on anti-models
+        if self.model.right.anti {
+            return None;
+        }
         let PatternMatchResult::True(mut bindings) = self.model.right.pattern.matches(&self.bindings, &input.pattern) else {
             return None;
         };
@@ -538,6 +542,7 @@ impl BoundModel {
     pub fn predict_state_change(
         &self,
         state: &SystemState,
+        anti_requirements: &Vec<&IMdl>,
         instantiated_casual_models: &Vec<BoundModel>,
         system: &System,
     ) -> Option<SystemState> {
@@ -548,8 +553,13 @@ impl BoundModel {
         // Prediction from reuse models will also be included
         if self.model.is_reuse_model() {
             return self.get_reused_model(instantiated_casual_models, system)
-                .map(|m| m.predict_state_change(state, instantiated_casual_models, system))
+                .map(|m| m.predict_state_change(state, anti_requirements, instantiated_casual_models, system))
                 .flatten();
+        }
+        // Don't predict if this model matches an anti-requirement
+        let self_imdl = self.imdl_for_model();
+        if anti_requirements.iter().any(|req| compare_imdls(req, &self_imdl, true, true)) {
+            return None;
         }
         let Some(predicted_value) = mk_val
             .value
@@ -557,13 +567,13 @@ impl BoundModel {
             return None;
         };
 
-        let self_imdl = self.imdl_for_model();
+
         let imdl_lhs = Fact::new(MdlLeftValue::IMdl(self_imdl), TimePatternRange::wildcard());
         let other_state_changes = instantiated_casual_models
             .iter()
             .filter_map(|m| m.deduce(&imdl_lhs))
             .filter_map(|rhs| {
-                match rhs {
+                match rhs.pattern {
                     MdlRightValue::MkVal(mk_val) => {
                         if let (Some(entity_id), Some(value)) = (
                             mk_val.entity_id.get_id_with_bindings(&HashMap::new()),

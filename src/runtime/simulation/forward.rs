@@ -98,7 +98,11 @@ fn forward_chain_rec(
     let mut insatiable_casual_models = Vec::new();
     // Casual goal models with all bindings filled in form both forward and backward chaining
     let mut final_casual_models = Vec::new();
-    for fwd_chained_imdl in fwd_chained_casual_models {
+    for (fwd_chained_imdl, is_anti_fact) in &fwd_chained_casual_models {
+        if *is_anti_fact {
+            continue;
+        }
+
         // Get backward chained casual models
         for casual_model in goal_requirements
             .iter()
@@ -131,6 +135,7 @@ fn forward_chain_rec(
         {
             let Some(next_state) = casual_model.predict_state_change(
                 &state,
+                &fwd_chained_casual_models.iter().filter(|(_, anti)| *anti).map(|(imdl, _)| imdl).collect(),
                 &insatiable_casual_models,
                 system,
             ) else {
@@ -195,7 +200,7 @@ fn forward_chain_rec(
     (results, is_in_goal_path, node_min_goal_depth)
 }
 
-fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Vec<IMdl> {
+fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Vec<(IMdl, bool)> {
     let instantiated_composite_states = state.instansiated_csts
         .iter()
         .flat_map(|(_, csts)| csts.iter().map(BoundCst::icst_for_cst))
@@ -210,8 +215,8 @@ fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Ve
                 .filter_map(|icst| bm.deduce(&Fact::new(MdlLeftValue::ICst(icst.clone()), TimePatternRange::wildcard())))
                 .collect_vec()
         })
-        .map(|rhs| match rhs {
-            MdlRightValue::IMdl(imdl) => imdl,
+        .map(|rhs| match rhs.pattern {
+            MdlRightValue::IMdl(imdl) => (imdl, rhs.anti),
             MdlRightValue::MkVal(_) => {
                 panic!("Rhs of requirement model cannot be mk.val")
             }
