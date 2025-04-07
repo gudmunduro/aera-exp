@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use anyhow::{anyhow, bail};
-use piston_window::Key::P;
 use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
-use crate::types::cst::ICst;
-use crate::types::models::IMdl;
 use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;
 use crate::types::value::Value;

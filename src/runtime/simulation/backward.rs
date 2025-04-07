@@ -1,13 +1,13 @@
-use crate::runtime::pattern_matching::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models, are_goals_equal, compare_imdls, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
+use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_duplicate_bindings_from_pattern};
+use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models};
 use crate::types::cst::Cst;
-use crate::types::models::{AbductionResult, BoundModel, IMdl, Mdl, MdlRightValue};
+use crate::types::models::{AbductionResult, IMdl, Mdl, MdlRightValue};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
-use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MatchesFact, MkVal, TimePatternRange};
+use crate::types::{EntityDeclaration, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
 use std::collections::HashMap;
-use piston_window::math::sub;
 
 const MAX_DEPTH: usize = 10;
 

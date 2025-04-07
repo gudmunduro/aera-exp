@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::runtime::pattern_matching::{all_req_models, compare_imdls, state_matches_facts};
+use crate::runtime::pattern_matching::{compare_imdls, state_matches_facts};
 use crate::types::models::{IMdl, MdlLeftValue, MdlRightValue};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
+use crate::runtime::utils::all_req_models;
 use crate::types::cst::BoundCst;
-use crate::visualize::visualize_forward_chaining;
 
 const MAX_FWD_CHAIN_DEPTH: u64 = 20;
 

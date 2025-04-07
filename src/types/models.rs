@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_imdls, compare_patterns, compute_assumptions, compute_instantiated_states, compute_state_predictions, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
+use crate::runtime::pattern_matching::{combine_pattern_bindings, compare_imdls, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::cst::ICst;
 use crate::types::functions::Function;
 use crate::types::pattern::{
@@ -6,13 +6,13 @@ use crate::types::pattern::{
 };
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
-use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem, TimePatternRange, TimePatternValue};
+use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem, TimePatternRange};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::panic::resume_unwind;
 use tap::Tap;
+use crate::runtime::utils::{compute_assumptions, compute_instantiated_states, compute_state_predictions};
 
 #[derive(Clone, Debug)]
 pub struct Mdl {

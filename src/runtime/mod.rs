@@ -2,11 +2,13 @@
 pub mod pattern_matching;
 pub mod simulation;
 mod seeds;
+pub mod utils;
 
 use std::vec;
 use crate::interfaces::tcp_interface::TcpInterface;
 use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
-use crate::runtime::pattern_matching::{compute_assumptions, compute_instantiated_states, state_matches_facts};
+use crate::runtime::utils::{compute_assumptions, compute_instantiated_states};
+use crate::runtime::pattern_matching::state_matches_facts;
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::forward_chain;
 use crate::types::{EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
