@@ -66,20 +66,31 @@ pub trait MatchesFact<T: Clone> {
 pub struct Fact<T: Clone> {
     pub pattern: T,
     pub time_range: TimePatternRange,
+    pub anti: bool,
 }
 
 impl<T: Clone> Fact<T> {
     pub fn new(pattern: T, time_range: TimePatternRange) -> Fact<T> {
         Fact {
             pattern,
-            time_range
+            time_range,
+            anti: false,
+        }
+    }
+
+    pub fn anti(pattern: T, time_range: TimePatternRange) -> Fact<T> {
+        Fact {
+            pattern,
+            time_range,
+            anti: true,
         }
     }
 
     pub fn with_pattern<T2: Clone>(&self, pattern: T2) -> Fact<T2> {
         Fact {
             pattern,
-            time_range: self.time_range.clone()
+            time_range: self.time_range.clone(),
+            anti: self.anti,
         }
     }
 }

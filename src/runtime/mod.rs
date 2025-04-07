@@ -29,15 +29,15 @@ pub fn run_demo() {
     }
 
     let goal = vec![
-        Fact {
-            pattern: MkVal {
+        Fact::new(
+            MkVal {
                 entity_id: EntityPatternValue::EntityId("o".to_string()),
                 var_name: "pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
                 assumption: false,
             },
-            time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-        },
+            TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+        ),
     ];
 
     let bwd_result = backward_chain(&goal, &system);
@@ -62,48 +62,48 @@ pub fn run_with_tcp() {
 
     let mut goals = vec![
         vec![
-            Fact {
-                pattern: MkVal {
+            Fact::new(
+                MkVal {
                     entity_id: EntityPatternValue::EntityId("2".to_string()),
                     var_name: "approximate_pos".to_string(),
                     value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-107.0), Value::Number(45.0)])),
                     assumption: false,
                 },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
         ],
         vec![
-            Fact {
-                pattern: MkVal {
+            Fact::new(
+                MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Vec(vec![]),
                     assumption: false,
                 },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
         ],
         vec![
-            Fact {
-                pattern: MkVal {
+            Fact::new(
+                MkVal {
                     entity_id: EntityPatternValue::EntityId("1".to_string()),
                     var_name: "approximate_pos".to_string(),
                     value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-90.0), Value::Number(180.0)])),
                     assumption: false,
                 },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
         ],
         vec![
-            Fact {
-                pattern: MkVal {
+            Fact::new(
+                MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Vec(vec![]),
                     assumption: false,
                 },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
         ],
     ];
 

@@ -16,15 +16,15 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "S0".to_string(),
         Cst {
             cst_id: "S0".to_string(),
-            facts: vec![Fact {
-                pattern: MkVal {
+            facts: vec![Fact::new(
+                MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("p".to_string()),
                     assumption: false,
                 },
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            }],
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            )],
             entities: vec![EntityDeclaration::new("h", "hand")],
         },
     );
@@ -33,18 +33,18 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "mdl_move_req".to_string(),
         Mdl {
             model_id: "mdl_move_req".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::ICst(ICst {
+            left: Fact::new(
+                MdlLeftValue::ICst(ICst {
                     cst_id: "S0".to_string(),
                     params: vec![
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl::new(
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::IMdl(IMdl::new(
                     "mdl_move".to_string(),
                     vec![
                         PatternItem::Binding("h".to_string()),
@@ -52,8 +52,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                         PatternItem::Binding("p".to_string()),
                     ],
                 )),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
@@ -64,23 +64,23 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "mdl_move".to_string(),
         Mdl {
             model_id: "mdl_move".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::Command(Command {
+            left: Fact::new(
+                MdlLeftValue::Command(Command {
                     name: "move".to_string(),
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     params: vec![PatternItem::Binding("dp".to_string())],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::MkVal(MkVal {
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("np".to_string()),
                     assumption: false,
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: [(
                 "np".to_string(),
                 Function::Add(
@@ -108,33 +108,33 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         Cst {
             cst_id: "S2".to_string(),
             facts: vec![
-                Fact {
-                    pattern: MkVal {
+                Fact::new(
+                    MkVal {
                         entity_id: EntityPatternValue::Binding("b".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                         assumption: false,
                     },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
-                Fact {
-                    pattern: MkVal {
+                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                ),
+                Fact::new(
+                    MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                         assumption: false,
                     },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
-                Fact {
-                    pattern: MkVal {
+                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                ),
+                Fact::new(
+                    MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "holding".to_string(),
                         value: PatternItem::Vec(vec![]),
                         assumption: false,
                     },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
+                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                ),
             ],
             entities: vec![EntityDeclaration::new("b", "box")],
         },
@@ -144,8 +144,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_grab_req".to_string(),
         Mdl {
             model_id: "M_grab_req".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::ICst(ICst {
+            left: Fact::new(
+                MdlLeftValue::ICst(ICst {
                     cst_id: "S2".to_string(),
                     params: vec![
                         PatternItem::Binding("b".to_string()),
@@ -153,17 +153,17 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                         PatternItem::Binding("h".to_string()),
                     ],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl::new(
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::IMdl(IMdl::new(
                     "M_grab".to_string(),
                     vec![
                         PatternItem::Binding("b".to_string())
                     ],
                 )),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
@@ -174,23 +174,23 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_grab".to_string(),
         Mdl {
             model_id: "M_grab".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::Command(Command {
+            left: Fact::new(
+                MdlLeftValue::Command(Command {
                     name: "grab".to_string(),
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     params: vec![],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::MkVal(MkVal {
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Vec(vec![PatternItem::Binding("b".to_string())]),
                     assumption: false,
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: [].into(),
             backward_computed: [].into(),
             confidence: 1.0,
@@ -204,24 +204,24 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         Cst {
             cst_id: "S_holding".to_string(),
             facts: vec![
-                Fact {
-                    pattern: MkVal {
+                Fact::new(
+                    MkVal {
                         entity_id: EntityPatternValue::Binding("b".to_string()),
                         var_name: "position".to_string(),
                         value: PatternItem::Binding("p".to_string()),
                         assumption: false,
                     },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
-                Fact {
-                    pattern: MkVal {
+                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                ),
+                Fact::new(
+                    MkVal {
                         entity_id: EntityPatternValue::EntityId("h".to_string()),
                         var_name: "holding".to_string(),
                         value: PatternItem::Vec(vec![PatternItem::Binding("b".to_string())]),
                         assumption: false,
                     },
-                    time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                },
+                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+                ),
             ],
             entities: vec![EntityDeclaration::new("b", "box")],
         },
@@ -231,23 +231,23 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_release_req".to_string(),
         Mdl {
             model_id: "M_release_req".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::ICst(ICst {
+            left: Fact::new(
+                MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
                     params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl::new(
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::IMdl(IMdl::new(
                     "M_release".to_string(),
                     vec![],
                 )),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
@@ -258,23 +258,23 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_release".to_string(),
         Mdl {
             model_id: "M_release".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::Command(Command {
+            left: Fact::new(
+                MdlLeftValue::Command(Command {
                     name: "release".to_string(),
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     params: vec![],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::MkVal(MkVal {
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     var_name: "holding".to_string(),
                     value: PatternItem::Vec(vec![]),
                     assumption: false,
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: [].into(),
             backward_computed: [].into(),
             confidence: 1.0,
@@ -287,18 +287,18 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_move_cube_req".to_string(),
         Mdl {
             model_id: "M_move_cube_req".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::ICst(ICst {
+            left: Fact::new(
+                MdlLeftValue::ICst(ICst {
                     cst_id: "S_holding".to_string(),
                     params: vec![
                         PatternItem::Binding("b".to_string()),
                         PatternItem::Binding("p".to_string()),
                     ],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::IMdl(IMdl::new(
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::IMdl(IMdl::new(
                     "M_move_cube".to_string(),
                     vec![
                         PatternItem::Binding("dp".to_string()),
@@ -306,8 +306,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                         PatternItem::Binding("b".to_string()),
                     ],
                 )),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
@@ -318,23 +318,23 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
         "M_move_cube".to_string(),
         Mdl {
             model_id: "M_move_cube".to_string(),
-            left: Fact {
-                pattern: MdlLeftValue::Command(Command {
+            left: Fact::new(
+                MdlLeftValue::Command(Command {
                     name: "move".to_string(),
                     entity_id: EntityPatternValue::EntityId("h".to_string()),
                     params: vec![PatternItem::Binding("dp".to_string())],
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
-            right: Fact {
-                pattern: MdlRightValue::MkVal(MkVal {
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
+            right: Fact::new(
+                MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("b".to_string()),
                     var_name: "position".to_string(),
                     value: PatternItem::Binding("np".to_string()),
                     assumption: false,
                 }),
-                time_range: TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
+            ),
             forward_computed: [(
                 "np".to_string(),
                 Function::Add(
