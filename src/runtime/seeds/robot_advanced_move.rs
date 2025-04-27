@@ -732,4 +732,51 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
     );*/
 
     system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::Number(0.0), Value::Number(0.0), Value::Number(0.0), Value::Number(0.0)]));
+
+    system.goals = vec![
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("2".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-107.0), Value::Number(45.0)])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+        ],
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+        ],
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("1".to_string()),
+                    var_name: "approximate_pos".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(240.0), Value::Number(0.0), Value::Number(-90.0), Value::Number(180.0)])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+        ],
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+        ],
+    ];
 }

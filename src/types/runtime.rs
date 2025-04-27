@@ -1,7 +1,4 @@
-use crate::types::{
-    cst::Cst, models::Mdl, EntityVariableKey, Time, TimePatternRange,
-    TimePatternValue,
-};
+use crate::types::{cst::Cst, models::Mdl, EntityVariableKey, Fact, MkVal, Time, TimePatternRange, TimePatternValue};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use itertools::Itertools;
@@ -13,6 +10,8 @@ pub struct System {
     pub models: HashMap<String, Mdl>,
     pub csts: HashMap<String, Cst>,
     pub entities_in_classes: HashMap<String, Vec<String>>,
+    pub current_goal_index: usize,
+    pub goals: Vec<Vec<Fact<MkVal>>>
 }
 
 impl System {
@@ -26,6 +25,8 @@ impl System {
             models: HashMap::new(),
             csts: HashMap::new(),
             entities_in_classes: HashMap::new(),
+            current_goal_index: 0,
+            goals: Vec::new()
         }
     }
 

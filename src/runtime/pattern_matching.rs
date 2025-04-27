@@ -25,6 +25,10 @@ pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, Valu
 }
 
 pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> bool {
+    if facts.is_empty() {
+        return false;
+    }
+
     facts.iter().all(|f| {
         let Some(entity_key) = f.pattern.entity_key(&HashMap::new()) else {
             return false;

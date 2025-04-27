@@ -257,4 +257,18 @@ pub fn setup_bindings_seed(system: &mut System) {
         EntityVariableKey::new("o", "pos"),
         Value::Vec(vec![Value::Number(5.0), Value::Number(5.0)]),
     );
+
+    system.goals = vec![
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("o".to_string()),
+                    var_name: "pos".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(5.0, 0.1), Value::UncertainNumber(7.0, 0.1)])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+        ]
+    ]
 }

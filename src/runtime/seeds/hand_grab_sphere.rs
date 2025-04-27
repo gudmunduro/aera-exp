@@ -4,6 +4,7 @@ use crate::types::functions::Function;
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{PatternItem};
 use crate::types::runtime::System;
+use crate::types::value::Value;
 
 #[allow(unused)]
 pub fn setup_hand_grab_sphere_seed(system: &mut System) {
@@ -352,4 +353,58 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             confidence: 1.0,
         },
     );
+
+    system.goals = vec![
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_0".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-0.7), Value::Number(0.0)])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+            /*Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),*/
+        ],
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("b_1".to_string()),
+                    var_name: "position".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0), Value::Number(-1.0), Value::Number(0.0)])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),
+            /*Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Value(Value::Vec(vec![Value::EntityId("b_0".to_string())])),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            ),*/
+        ],
+        vec![
+            Fact::new(
+                MkVal {
+                    entity_id: EntityPatternValue::EntityId("h".to_string()),
+                    var_name: "holding".to_string(),
+                    value: PatternItem::Vec(vec![]),
+                    assumption: false,
+                },
+                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any)
+            )
+        ]
+    ];
 }
