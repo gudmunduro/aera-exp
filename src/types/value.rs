@@ -9,6 +9,7 @@ use crate::utils::math::probability_density;
 #[derive(Clone, Debug)]
 pub enum Value {
     Number(f64),
+    ConstantNumber(f64),
     UncertainNumber(f64, f64),
     String(String),
     Vec(Vec<Value>),
@@ -38,11 +39,20 @@ impl Value {
     pub fn try_to_string(&self) -> Option<String> {
         match self {
             Value::Number(i) => Some(i.to_string()),
+            Value::ConstantNumber(i) => Some(i.to_string()),
             Value::UncertainNumber(i, _) => Some(i.to_string()),
             Value::String(s) => Some(s.clone()),
             Value::EntityId(s) => Some(s.clone()),
             Value::Vec(v) if v.len() == 1 => v[0].try_to_string(),
             Value::Vec(_) => None,
+        }
+    }
+
+    pub fn can_do_numeric_op(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Number(_) | Value::ConstantNumber(_) | Value::UncertainNumber(_, _), Value::Number(_) | Value::ConstantNumber(_) | Value::UncertainNumber(_, _)) => true,
+            (Value::Vec(v1), Value::Vec(v2)) => v1.iter().zip(v2).all(|(v1, v2)| v1.can_do_numeric_op(v2)),
+            _ => false
         }
     }
 }
@@ -51,8 +61,9 @@ impl PartialEq<Value> for Value {
     fn eq(&self, other: &Value) -> bool {
         match (self, other) {
             (Value::Number(n), Value::Number(n2)) => float_cmp(*n, *n2, 0.1),
-            (Value::Number(n), Value::UncertainNumber(m, s))
-            | (Value::UncertainNumber(m, s), Value::Number(n)) => {
+            (Value::ConstantNumber(n), Value::ConstantNumber(n2)) => float_cmp(*n, *n2, 0.1),
+            ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s))
+            | (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => {
                 probability_density(*n, *m, *s) > 0.001
             }
             (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) if float_eq(*s1, *s2) => {
@@ -65,6 +76,8 @@ impl PartialEq<Value> for Value {
         }
     }
 }
+
+impl Eq for Value {}
 
 impl PartialEq<PatternItem> for Value {
     fn eq(&self, other: &PatternItem) -> bool {
@@ -87,15 +100,18 @@ impl Add<Value> for Value {
 
     fn add(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 + n2),
+            (
+                (Value::Number(n1) | Value::ConstantNumber(n1)),
+                (Value::Number(n2) | Value::ConstantNumber(n2))
+            ) => Value::Number(n1 + n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
                     .map(|(e1, e2)| e1 + e2)
                     .collect(),
             ),
-            (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m + n, s),
-            (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n + m, s),
+            (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => Value::UncertainNumber(m + n, s),
+            ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n + m, s),
             (Value::UncertainNumber(n, s1), Value::UncertainNumber(m, s2)) => Value::UncertainNumber(n + m, s1.max(s2)),
             _ => panic!("Value does not support addition"),
         }
@@ -107,15 +123,18 @@ impl Sub<Value> for Value {
 
     fn sub(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 - n2),
+            (
+                (Value::Number(n1) | Value::ConstantNumber(n1)),
+                (Value::Number(n2) | Value::ConstantNumber(n2))
+            ) => Value::Number(n1 - n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
                     .map(|(e1, e2)| e1 - e2)
                     .collect(),
             ),
-            (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m - n, s),
-            (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n - m, s),
+            (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => Value::UncertainNumber(m - n, s),
+            ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n - m, s),
             (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) => Value::UncertainNumber(m1 - m2, s1.max(s2)),
             (v1, v2) => panic!("Value does not support subtraction ({v1:?} - {v2:?})"),
         }
@@ -127,15 +146,18 @@ impl Mul<Value> for Value {
 
     fn mul(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 * n2),
+            (
+                (Value::Number(n1) | Value::ConstantNumber(n1)),
+                (Value::Number(n2) | Value::ConstantNumber(n2))
+            ) => Value::Number(n1 * n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
                     .map(|(e1, e2)| e1 * e2)
                     .collect(),
             ),
-            (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m * n, s),
-            (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n * m, s),
+            (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => Value::UncertainNumber(m * n, s),
+            ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n * m, s),
             _ => panic!("Value does not support multiplication"),
         }
     }
@@ -146,15 +168,19 @@ impl Div<Value> for Value {
 
     fn div(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(n1), Value::Number(n2)) => Value::Number(n1 / n2),
+            (
+                (Value::Number(n1) | Value::ConstantNumber(n1)),
+                (Value::Number(n2) | Value::ConstantNumber(n2))
+            ) => Value::Number(n1 / n2),
+            (Value::ConstantNumber(n1), Value::ConstantNumber(n2)) => Value::Number(n1 / n2),
             (Value::Vec(v1), Value::Vec(v2)) => Value::Vec(
                 v1.into_iter()
                     .zip(v2)
                     .map(|(e1, e2)| e1 / e2)
                     .collect(),
             ),
-            (Value::UncertainNumber(m, s), Value::Number(n)) => Value::UncertainNumber(m / n, s),
-            (Value::Number(n), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n / m, s),
+            (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => Value::UncertainNumber(m / n, s),
+            ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s)) => Value::UncertainNumber(n / m, s),
             _ => panic!("Value does not support division"),
         }
     }
@@ -164,6 +190,7 @@ impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::Number(v) => ((v * 10.0) as i64).hash(state),
+            Value::ConstantNumber(v) => ((v * 10.0) as i64).hash(state),
             Value::UncertainNumber(m, s) => [(m * 10.0) as i64, (s * 10.0) as i64].hash(state),
             Value::String(s) => s.hash(state),
             Value::Vec(v) => v.hash(state),
@@ -176,6 +203,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
             Value::Number(n) => n.to_string(),
+            Value::ConstantNumber(n) => n.to_string(),
             Value::UncertainNumber(m, s) => format!("(uncertain {m} {s})"),
             Value::String(s) => format!("\"{}\"", s.to_owned()),
             Value::Vec(v) => format!("[{}]", v.iter().map(|e| e.to_string()).join(" ")),

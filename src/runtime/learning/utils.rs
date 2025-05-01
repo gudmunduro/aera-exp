@@ -1,0 +1,86 @@
+use std::collections::HashSet;
+use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal};
+use crate::types::pattern::PatternItem;
+use crate::types::runtime::System;
+use crate::types::value::Value;
+
+pub struct EntityVarChange {
+    pub entity: EntityVariableKey,
+    pub before: Value,
+    pub after: Value
+}
+
+pub fn change_intersects_fact(change: &EntityVarChange, fact: &Fact<MkVal>) -> bool {
+    let change_set = extract_values_from_change(change);
+    let fact_set = extract_values_from_fact(fact);
+    change_set.intersection(&fact_set).count() > 0
+}
+
+pub fn change_intersects_entity_var(change: &EntityVarChange, entity_var: (&EntityVariableKey, &Value)) -> bool {
+    let change_set = extract_values_from_change(change);
+    let entity_var_set = extract_values_from_entity_var(entity_var);
+    change_set.intersection(&entity_var_set).count() > 0
+}
+
+// Extract all the relevant values from the change, which can then be used to check if specific facts and CSTS are relevant
+fn extract_values_from_change(change: &EntityVarChange) -> HashSet<Value> {
+    let entity_id = change.entity.entity_id.clone();
+    let before_values = extract_values_from_value(&change.before);
+    let after_values = extract_values_from_value(&change.after);
+    let mut res: HashSet<Value> = before_values.union(&after_values).cloned().collect();
+    res.insert(Value::EntityId(entity_id));
+    res
+}
+
+fn extract_values_from_entity_var(entity_var: (&EntityVariableKey, &Value)) -> HashSet<Value> {
+    let entity_id = entity_var.0.entity_id.clone();
+    let mut values_set = extract_values_from_value(&entity_var.1);
+    values_set.insert(Value::EntityId(entity_id));
+    values_set
+}
+
+fn extract_values_from_fact(fact: &Fact<MkVal>) -> HashSet<Value> {
+    let EntityPatternValue::EntityId(entity_id) = &fact.pattern.entity_id else {
+        log::error!("Fact in CTPX does not have value for entity, that should never happen");
+        return HashSet::new();
+    };
+    let PatternItem::Value(value) = &fact.pattern.value else {
+        log::error!("Fact in CTPX does not have value for value pattern, that should never happen");
+        return HashSet::new();
+    };
+    let mut value_set = extract_values_from_value(value);
+    value_set.insert(Value::EntityId(entity_id.clone()));
+    value_set
+}
+
+fn extract_values_from_value(value: &Value) -> HashSet<Value> {
+    match value {
+        Value::Number(_) | Value::ConstantNumber(_) | Value::String(_) | Value::EntityId(_) => HashSet::from([value.clone()]),
+        Value::UncertainNumber(m, s) => HashSet::from([Value::Number(*m), Value::Number(*s)]),
+        Value::Vec(vec) => vec.iter()
+            .flat_map(|v| extract_values_from_value(v))
+            .collect()
+    }
+}
+
+pub fn generate_casual_model_name(system: &System) -> String {
+    format!("mdl_{}", system.models.len())
+}
+
+pub fn generate_req_model_name(system: &System) -> String {
+    format!("mdl_req_{}", system.models.len())
+}
+
+pub fn generate_cst_name(system: &System) -> String {
+    format!("cst_{}", system.csts.len())
+}
+
+pub fn compute_vec_norm(values: &Vec<Value>) -> f64 {
+    let sum: f64 = values.iter().map(|v| match v {
+        Value::UncertainNumber(n, _) | Value::Number(n) => n.powi(2),
+        Value::Vec(v) => compute_vec_norm(&v).powi(2),
+        _ => panic!("Trying to compute norm of vec with string value")
+    }).sum();
+
+    sum.sqrt()
+}

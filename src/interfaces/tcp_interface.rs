@@ -136,6 +136,7 @@ impl TcpInterface {
 fn values_to_le_bytes(values: &[Value], comm_ids: &CommIds) -> Vec<u8> {
     values.into_iter().flat_map(|v| match v {
         Value::Number(v) => v.to_le_bytes().to_vec(),
+        Value::ConstantNumber(v) => v.to_le_bytes().to_vec(),
         // Std should probably never be sent to the controller
         Value::UncertainNumber(m, _) => m.to_le_bytes().to_vec(),
         Value::String(v) => v.as_bytes().to_vec(),

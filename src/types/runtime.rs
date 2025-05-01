@@ -1,9 +1,13 @@
-use crate::types::{cst::Cst, models::Mdl, EntityVariableKey, Fact, MkVal, Time, TimePatternRange, TimePatternValue};
+use crate::types::cst::BoundCst;
+use crate::types::pattern::PatternItem;
+use crate::types::value::Value;
+use crate::types::{
+    cst::Cst, models::Mdl, Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, Time,
+    TimePatternRange, TimePatternValue,
+};
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use itertools::Itertools;
-use crate::types::cst::BoundCst;
-use crate::types::value::Value;
 
 pub struct System {
     pub current_state: SystemState,
@@ -11,7 +15,8 @@ pub struct System {
     pub csts: HashMap<String, Cst>,
     pub entities_in_classes: HashMap<String, Vec<String>>,
     pub current_goal_index: usize,
-    pub goals: Vec<Vec<Fact<MkVal>>>
+    pub goals: Vec<Vec<Fact<MkVal>>>,
+    pub babble_command: Vec<RuntimeCommand>,
 }
 
 impl System {
@@ -26,7 +31,8 @@ impl System {
             csts: HashMap::new(),
             entities_in_classes: HashMap::new(),
             current_goal_index: 0,
-            goals: Vec::new()
+            goals: Vec::new(),
+            babble_command: Vec::new(),
         }
     }
 
@@ -41,6 +47,18 @@ impl System {
         };
 
         class.push(entity_id.to_owned());
+    }
+
+    pub fn find_class_of_entity(&self, entity_id: &str) -> Option<String> {
+        self.entities_in_classes
+            .iter()
+            .find_map(|(class, entities)| {
+                if entities.iter().any(|e| entity_id == e) {
+                    Some(class.to_string())
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -106,9 +124,37 @@ pub struct RuntimeCommand {
     pub params: Vec<Value>,
 }
 
+impl RuntimeCommand {
+    pub fn new(name: String, entity_id: String, params: Vec<Value>) -> Self {
+        Self {
+            name,
+            entity_id,
+            params,
+        }
+    }
+
+    pub fn to_command(&self) -> Command {
+        Command {
+            name: self.name.clone(),
+            entity_id: EntityPatternValue::EntityId(self.entity_id.clone()),
+            params: self
+                .params
+                .iter()
+                .map(|v| PatternItem::Value(v.clone()))
+                .collect(),
+        }
+    }
+}
+
 impl Display for RuntimeCommand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(cmd {} {} {})", self.name, self.entity_id, self.params.iter().map(|v| v.to_string()).join(" "))?;
+        write!(
+            f,
+            "(cmd {} {} {})",
+            self.name,
+            self.entity_id,
+            self.params.iter().map(|v| v.to_string()).join(" ")
+        )?;
 
         Ok(())
     }

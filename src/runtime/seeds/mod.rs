@@ -1,5 +1,6 @@
 pub mod hand_grab_sphere;
 pub mod robot_advanced_move;
+pub mod hand_grab_sphere_learn;
 
 use crate::types::cst::{Cst, ICst};
 use crate::types::{Command, EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange, TimePatternValue};

@@ -4,10 +4,11 @@ use std::rc::Rc;
 use crate::runtime::pattern_matching::{compare_imdls, state_matches_facts};
 use crate::types::models::{IMdl, MdlLeftValue, MdlRightValue};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{Fact, MkVal, TimePatternRange};
+use crate::types::{EntityVariableKey, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
 use crate::runtime::utils::all_req_models;
 use crate::types::cst::BoundCst;
+use crate::types::value::Value;
 
 const MAX_FWD_CHAIN_DEPTH: u64 = 20;
 
@@ -240,4 +241,23 @@ fn commit_to_path(forward_chain_result: &Vec<Rc<ForwardChainNode>>) -> Vec<Runti
         path
     }
 
+}
+
+pub fn predict_all_changes_of_command(command: &RuntimeCommand, system: &System) -> Vec<(EntityVariableKey, Value)> {
+    let lhs_cmd = Fact::new(MdlLeftValue::Command(command.to_command()), TimePatternRange::wildcard());
+    let fwd_chained_casual_models = compute_instantiate_casual_models(&system.current_state, system);
+
+    fwd_chained_casual_models
+        .iter()
+        .filter_map(|(mdl, _)| mdl.instantiate(&HashMap::new(), system).deduce(&lhs_cmd))
+        .filter_map(|rhs| match &rhs.pattern {
+            MdlRightValue::MkVal(f) => Some(
+                (
+                    EntityVariableKey::new(&f.entity_id.get_id_with_bindings(&HashMap::new())?, &f.var_name),
+                    f.value.get_value_with_bindings(&HashMap::new())?
+                )
+            ),
+            _ => None
+        })
+        .collect()
 }

@@ -49,10 +49,11 @@ impl Function {
             },
             Function::ConvertToNumber(f) => {
                 let str_id = match f.evaluate(bindings)? {
-                    Value::UncertainNumber(i, _) => i.to_string(),
+                    v @ Value::UncertainNumber(_, _) => return Some(v),
+                    v @ Value::Number(_) => return Some(v),
+                    v @ Value::ConstantNumber(_) => return Some(v),
                     Value::String(s) => s.clone(),
                     Value::EntityId(s) => s.clone(),
-                    Value::Number(i) => return Some(Value::Number(i)),
                     Value::Vec(_) => return None,
                 };
 
