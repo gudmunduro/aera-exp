@@ -534,7 +534,7 @@ impl BoundModel {
         IMdl::with_fwd_guards(self.model.model_id.clone(), param_pattern, fwd_guard_bindings)
     }
 
-    pub fn deduce(&self, input: &Fact<MdlLeftValue>) -> Option<Fact<MdlRightValue>> {
+    pub fn deduce(&self, input: &Fact<MdlLeftValue>, anti_requirements: &Vec<&IMdl>) -> Option<Fact<MdlRightValue>> {
         let PatternMatchResult::True(mut bindings) = self.model.left.pattern.matches(&self.bindings, &input.pattern) else {
             return None;
         };
@@ -545,6 +545,12 @@ impl BoundModel {
             bindings
         };
         model.compute_forward_bindings();
+
+        // Check if this model matches any anti-requirement
+        let self_imdl = model.imdl_for_model();
+        if anti_requirements.iter().any(|req| compare_imdls(req, &self_imdl, true, true)) {
+            return None;
+        }
 
         Some(self.model.right.with_pattern(model.filled_in_rhs()))
     }
@@ -625,9 +631,10 @@ impl BoundModel {
 
 
         let imdl_lhs = Fact::new(MdlLeftValue::IMdl(self_imdl), TimePatternRange::wildcard());
+        // TODO: Consider handling anti-requirements in deduce
         let other_state_changes = instantiated_casual_models
             .iter()
-            .filter_map(|m| m.deduce(&imdl_lhs))
+            .filter_map(|m| m.deduce(&imdl_lhs, &Vec::new()))
             .filter_map(|rhs| {
                 match rhs.pattern {
                     MdlRightValue::MkVal(mk_val) => {

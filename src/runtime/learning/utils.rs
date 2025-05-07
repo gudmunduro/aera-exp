@@ -1,8 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
+
+pub type PatternValueMap = HashMap<Value, String>;
 
 pub struct EntityVarChange {
     pub entity: EntityVariableKey,
@@ -71,6 +73,10 @@ pub fn generate_req_model_name(system: &System) -> String {
     format!("mdl_req_{}", system.models.len())
 }
 
+pub fn generate_anti_req_model_name(system: &System) -> String {
+    format!("mdl_anti_req_{}", system.models.len())
+}
+
 pub fn generate_cst_name(system: &System) -> String {
     format!("cst_{}", system.csts.len())
 }
@@ -83,4 +89,60 @@ pub fn compute_vec_norm(values: &Vec<Value>) -> f64 {
     }).sum();
 
     sum.sqrt()
+}
+
+pub fn create_pattern_for_values(
+    values: &Vec<Value>,
+    pattern_value_map: &mut PatternValueMap,
+) -> Vec<PatternItem> {
+    values
+        .iter()
+        .map(|v| create_pattern_for_value(v, pattern_value_map))
+        .collect()
+}
+
+pub fn create_pattern_for_value(
+    value: &Value,
+    pattern_value_map: &mut PatternValueMap,
+) -> PatternItem {
+    match value {
+        Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
+            if !pattern_value_map.contains_key(value) {
+                let binding = format!("v{}", pattern_value_map.len());
+                pattern_value_map.insert(value.clone(), binding.clone());
+                PatternItem::Binding(binding)
+            } else {
+                PatternItem::Binding(pattern_value_map[value].clone())
+            }
+        }
+        Value::Vec(vec) => PatternItem::Vec(
+            vec.iter()
+                .map(|v| create_pattern_for_value(v, pattern_value_map))
+                .collect(),
+        ),
+        Value::ConstantNumber(_) => PatternItem::Value(value.clone()),
+    }
+}
+
+pub fn create_bindings_for_value(
+    value: &Value,
+    pattern_value_map: &mut HashMap<Value, String>,
+    binding_prefix: &str,
+    start_index: &mut i32,
+) {
+    match value {
+        Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
+            if !pattern_value_map.contains_key(value) {
+                pattern_value_map.insert(value.clone(), format!("{binding_prefix}{start_index}"));
+                *start_index += 1;
+            }
+        }
+        Value::Vec(vec) => {
+            for v in vec {
+                create_bindings_for_value(v, pattern_value_map, binding_prefix, start_index);
+            }
+        }
+        // Don't create bindings for constant values
+        Value::ConstantNumber(_) => {}
+    }
 }

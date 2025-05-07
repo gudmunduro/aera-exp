@@ -612,6 +612,21 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![],
     });
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
 
     system.goals = vec![];
 }

@@ -1,7 +1,4 @@
-use crate::runtime::learning::utils::{
-    change_intersects_entity_var, change_intersects_fact, compute_vec_norm,
-    generate_casual_model_name, generate_cst_name, generate_req_model_name, EntityVarChange,
-};
+use crate::runtime::learning::utils::{change_intersects_entity_var, change_intersects_fact, compute_vec_norm, create_bindings_for_value, create_pattern_for_value, create_pattern_for_values, generate_casual_model_name, generate_cst_name, generate_req_model_name, EntityVarChange, PatternValueMap};
 use crate::types::cst::{Cst, ICst};
 use crate::types::functions::Function;
 use crate::types::models::{BoundModel, IMdl, Mdl, MdlLeftValue, MdlRightValue};
@@ -15,10 +12,9 @@ use crate::types::{
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::vec;
+use crate::runtime::learning::cst::form_new_cst_for_state;
 use crate::runtime::learning::model_comparison::compare_model_effects;
 use crate::runtime::utils::all_req_models;
-
-pub type PatternValueMap = HashMap<Value, String>;
 
 pub fn extract_patterns(
     changed_var: &EntityVariableKey,
@@ -36,7 +32,7 @@ pub fn extract_patterns(
         after: after.clone(),
     };
     let mut pattern_value_map = create_initial_pattern_value_map(&change, executed_command);
-    let cst = form_new_cst(&change, system, state_before, &mut pattern_value_map);
+    let cst = form_new_cst_for_state(&change, system, state_before, &mut pattern_value_map);
     let cmd_model =
         form_new_command_model(executed_command, &change, &mut pattern_value_map, system);
     let req_model = form_new_req_model(
@@ -64,77 +60,6 @@ fn find_existing_cst(change: &EntityVarChange, system: &System) -> Option<String
         .next()
 }
 
-// Creates a new CST for facts that appear to be related from the change
-fn form_new_cst(
-    change: &EntityVarChange,
-    system: &mut System,
-    state_before: &SystemState,
-    pattern_value_map: &mut PatternValueMap,
-) -> String {
-    let mut matching_entity_vars = state_before
-        .variables
-        .iter()
-        .filter(|(key, _)| *key != &change.entity)
-        .filter(|(key, value)| change_intersects_entity_var(change, (key, value)))
-        .map(|(key, value)| (key, value, false))
-        .collect_vec();
-    // Always have the premise first in the CST
-    matching_entity_vars.insert(0, (&change.entity, &change.before, true));
-    let name = generate_cst_name(system);
-    let cst = form_new_cst_from_entity_vars(
-        name.to_string(),
-        &matching_entity_vars,
-        change,
-        pattern_value_map,
-        system,
-    );
-    system.csts.insert(name.to_string(), cst);
-    name
-}
-
-fn form_new_cst_from_entity_vars(
-    cst_id: String,
-    entity_vars: &Vec<(&EntityVariableKey, &Value, bool)>,
-    change: &EntityVarChange,
-    pattern_value_map: &mut PatternValueMap,
-    system: &System,
-) -> Cst {
-    let mut facts = Vec::new();
-    for (key, value, is_premise) in entity_vars {
-        let value: PatternItem = create_pattern_for_value(value, pattern_value_map);
-
-        let entity_var = Value::EntityId(key.entity_id.clone());
-        let entity_binding: String = match create_pattern_for_value(&entity_var, pattern_value_map)
-        {
-            PatternItem::Binding(b) => b,
-            _ => panic!("Invalid pattern created for entity value"),
-        };
-        facts.push(Fact::new(
-            MkVal {
-                entity_id: EntityPatternValue::Binding(entity_binding.clone()),
-                var_name: key.var_name.clone(),
-                value,
-                assumption: false,
-            },
-            TimePatternRange::wildcard(),
-        ));
-    }
-
-    let entities = pattern_value_map
-        .iter()
-        .filter_map(|(v, b)| match v {
-            Value::EntityId(e) => Some(EntityDeclaration::new(b, &system.find_class_of_entity(e).unwrap())),
-            _ => None
-        })
-        .collect_vec();
-
-    Cst {
-        cst_id,
-        facts,
-        entities,
-    }
-}
-
 fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> String {
     let cst_binding_params = cst.binding_params();
     let lhs = MdlLeftValue::ICst(ICst {
@@ -144,18 +69,13 @@ fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> St
             .map(|b| PatternItem::Binding(b.clone()))
             .collect(),
     });
-    // TODO: Reuse same name for all param values, since names are shared across model triplet
     let rhs = MdlRightValue::IMdl(IMdl {
         model_id: command_model.model_id.clone(),
         params: command_model
             .binding_param()
             .iter()
             .map(|b| {
-                if b.starts_with("P") || b.starts_with("C") {
-                    PatternItem::Binding(b.clone())
-                } else {
-                    PatternItem::Any
-                }
+                PatternItem::Binding(b.clone())
             })
             .collect(),
         fwd_guard_bindings: Default::default(),
@@ -325,67 +245,10 @@ fn create_initial_pattern_value_map(
     for v in &executed_command.params {
         create_bindings_for_value(v, &mut map, "CMD", &mut cmd_binding_index);
     }
-    // Create this last so we know if any value in consequent did not match any other by checking if there is a C value
+    // Create this last so we know if any value in consequent did not match any other by checking if there is a C binding in the binding map
     create_bindings_for_value(&change.after, &mut map, "C", &mut 0);
 
     map
-}
-
-fn create_pattern_for_values(
-    values: &Vec<Value>,
-    pattern_value_map: &mut HashMap<Value, String>,
-) -> Vec<PatternItem> {
-    values
-        .iter()
-        .map(|v| create_pattern_for_value(v, pattern_value_map))
-        .collect()
-}
-
-// TODO: Boolean vectors will get special treatment here, will be learned as boolean values with rest ignored
-fn create_pattern_for_value(
-    value: &Value,
-    pattern_value_map: &mut HashMap<Value, String>,
-) -> PatternItem {
-    match value {
-        Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
-            if !pattern_value_map.contains_key(value) {
-                let binding = format!("v{}", pattern_value_map.len());
-                pattern_value_map.insert(value.clone(), binding.clone());
-                PatternItem::Binding(binding)
-            } else {
-                PatternItem::Binding(pattern_value_map[value].clone())
-            }
-        }
-        Value::Vec(vec) => PatternItem::Vec(
-            vec.iter()
-                .map(|v| create_pattern_for_value(v, pattern_value_map))
-                .collect(),
-        ),
-        Value::ConstantNumber(_) => PatternItem::Value(value.clone()),
-    }
-}
-
-fn create_bindings_for_value(
-    value: &Value,
-    pattern_value_map: &mut HashMap<Value, String>,
-    binding_prefix: &str,
-    start_index: &mut i32,
-) {
-    match value {
-        Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
-            if !pattern_value_map.contains_key(value) {
-                pattern_value_map.insert(value.clone(), format!("{binding_prefix}{start_index}"));
-                *start_index += 1;
-            }
-        }
-        Value::Vec(vec) => {
-            for v in vec {
-                create_bindings_for_value(v, pattern_value_map, binding_prefix, start_index);
-            }
-        }
-        // Don't create bindings for constant values
-        Value::ConstantNumber(_) => {}
-    }
 }
 
 // Check if the newly formed model triplet is the same as an existing one, except for only conditions in the CST
@@ -437,7 +300,7 @@ fn check_and_merge_with_existing_model(cst: &Cst, req_model: &Mdl, casual_model:
 
     println!("Merged into existing model");
     println!("{new_cst}");
-    println!("{req_model_ref}");
+    println!("{new_req_model_ref}");
 
     system.csts.remove(&cst.cst_id);
     system.models.remove(&req_model.model_id);

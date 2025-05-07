@@ -213,7 +213,7 @@ fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Ve
             let bm = m.as_bound_model();
             instantiated_composite_states
                 .iter()
-                .filter_map(|icst| bm.deduce(&Fact::new(MdlLeftValue::ICst(icst.clone()), TimePatternRange::wildcard())))
+                .filter_map(|icst| bm.deduce(&Fact::new(MdlLeftValue::ICst(icst.clone()), TimePatternRange::wildcard()), &Vec::new()))
                 .collect_vec()
         })
         .map(|rhs| match rhs.pattern {
@@ -243,18 +243,30 @@ fn commit_to_path(forward_chain_result: &Vec<Rc<ForwardChainNode>>) -> Vec<Runti
 
 }
 
-pub fn predict_all_changes_of_command(command: &RuntimeCommand, system: &System) -> Vec<(EntityVariableKey, Value)> {
+pub fn predict_all_changes_of_command(command: &RuntimeCommand, system: &System) -> Vec<(EntityVariableKey, Value, IMdl)> {
     let lhs_cmd = Fact::new(MdlLeftValue::Command(command.to_command()), TimePatternRange::wildcard());
     let fwd_chained_casual_models = compute_instantiate_casual_models(&system.current_state, system);
 
+    let anti_requirements = compute_instantiate_casual_models(&system.current_state, &system)
+        .into_iter()
+        .filter(|(_, anti)| *anti)
+        .map(|(imdl, _)| imdl)
+        .collect_vec();
+    let anti_requirements_ref = anti_requirements
+        .iter()
+        .collect_vec();
     fwd_chained_casual_models
         .iter()
-        .filter_map(|(mdl, _)| mdl.instantiate(&HashMap::new(), system).deduce(&lhs_cmd))
-        .filter_map(|rhs| match &rhs.pattern {
+        .filter_map(|(mdl, _)| {
+            let bound_mdl = mdl.instantiate(&HashMap::new(), system);
+            Some((bound_mdl.deduce(&lhs_cmd, &anti_requirements_ref)?, bound_mdl.imdl_for_model()))
+        })
+        .filter_map(|(rhs, imdl)| match &rhs.pattern {
             MdlRightValue::MkVal(f) => Some(
                 (
                     EntityVariableKey::new(&f.entity_id.get_id_with_bindings(&HashMap::new())?, &f.var_name),
-                    f.value.get_value_with_bindings(&HashMap::new())?
+                    f.value.get_value_with_bindings(&HashMap::new())?,
+                    imdl
                 )
             ),
             _ => None
