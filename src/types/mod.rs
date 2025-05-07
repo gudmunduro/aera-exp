@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use anyhow::{anyhow, bail};
+use itertools::Itertools;
 use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;
@@ -48,6 +49,7 @@ impl Command {
     }
 
     pub fn matches(&self, bindings: &HashMap<String, Value>, other: &Command, allow_unbound: bool, allow_different_length: bool,) -> PatternMatchResult {
+        // TODO: Compare entity
         if self.name == other.name
             && compare_patterns(&fill_in_pattern_with_bindings(self.params.clone(), bindings), &other.params, allow_unbound, allow_different_length) {
             PatternMatchResult::True(extract_bindings_from_patterns(&self.params, &other.params))
@@ -55,6 +57,20 @@ impl Command {
         else {
             PatternMatchResult::False
         }
+    }
+}
+
+impl Display for Command {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "(cmd {} [{} {}])",
+            self.name,
+            self.entity_id,
+            self.params.iter().map(|v| v.to_string()).join(" ")
+        )?;
+
+        Ok(())
     }
 }
 
@@ -98,6 +114,17 @@ impl<T: Clone> Fact<T> {
 impl MatchesFact<MkVal> for Fact<MkVal> {
     fn matches_fact(&self, fact: &Fact<MkVal>) -> bool {
         self.pattern.matches_mk_val(&fact.pattern)
+    }
+}
+
+impl<T> Display for Fact<T> where T: Clone + Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if !self.anti {
+            write!(f, "(fact {} : :)", self.pattern)
+        }
+        else {
+            write!(f, "(|fact {} : :)", self.pattern)
+        }
     }
 }
 
@@ -252,6 +279,13 @@ impl EntityPatternValue {
             EntityPatternValue::EntityId(_) => {}
         }
     }
+
+    pub fn to_pattern_item(&self) -> PatternItem {
+        match self {
+            EntityPatternValue::Binding(b) => PatternItem::Binding(b.clone()),
+            EntityPatternValue::EntityId(e) => PatternItem::Value(Value::EntityId(e.clone())),
+        }
+    }
 }
 
 impl Display for EntityPatternValue {
@@ -272,5 +306,11 @@ pub struct EntityDeclaration {
 impl EntityDeclaration {
     pub fn new(binding: &str, class: &str) -> EntityDeclaration {
         EntityDeclaration { binding: binding.to_owned(), class: class.to_owned() }
+    }
+}
+
+impl Display for EntityDeclaration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(mk.val {}: essence {})", &self.binding, &self.class)
     }
 }

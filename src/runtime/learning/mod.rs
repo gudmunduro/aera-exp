@@ -1,5 +1,6 @@
 mod ctpx;
 mod utils;
+mod model_comparison;
 
 use crate::types::EntityVariableKey;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};

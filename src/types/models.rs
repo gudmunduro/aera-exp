@@ -9,7 +9,7 @@ use crate::types::value::Value;
 use crate::types::{Command, EntityVariableKey, Fact, MkVal, PatternItem, TimePatternRange};
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use tap::Tap;
 use crate::runtime::utils::{compute_assumptions, compute_instantiated_states, compute_state_predictions};
@@ -200,6 +200,38 @@ impl Mdl {
     }
 }
 
+impl Display for Mdl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}:(mdl [] []", self.model_id)?;
+        writeln!(f, "  {}", &self.left)?;
+        writeln!(f, "  {}", &self.right)?;
+
+        if self.forward_computed.is_empty() {
+            writeln!(f, "|[]")?;
+        }
+        else {
+            writeln!(f, "[]")?;
+        }
+        for (binding, func) in &self.forward_computed {
+            writeln!(f, "  {binding}:{func}")?;
+        }
+
+        if self.backward_computed.is_empty() {
+            write!(f, "|[]")?;
+        }
+        else {
+            writeln!(f, "[]")?;
+        }
+        for (binding, func) in &self.backward_computed {
+            writeln!(f, "  {binding}:{func}")?;
+        }
+
+        write!(f, ")")?;
+
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum MdlLeftValue {
     ICst(ICst),
@@ -280,6 +312,18 @@ impl MdlLeftValue {
     }
 }
 
+impl Display for MdlLeftValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            MdlLeftValue::ICst(icst) => icst.to_string(),
+            MdlLeftValue::IMdl(imdl) => imdl.to_string(),
+            MdlLeftValue::Command(command) => command.to_string(),
+            MdlLeftValue::MkVal(mk_val) => mk_val.to_string(),
+        };
+        write!(f, "{string}")
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum MdlRightValue {
     IMdl(IMdl),
@@ -337,6 +381,18 @@ impl MdlRightValue {
                 MkVal(mk_val)
             }
         }
+    }
+}
+
+impl Display for MdlRightValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            MdlRightValue::IMdl(imdl) => imdl.to_string(),
+            MdlRightValue::MkVal(mk_val) => mk_val.to_string(),
+        };
+        write!(f, "{string}")?;
+
+        Ok(())
     }
 }
 
@@ -440,10 +496,10 @@ impl Display for IMdl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "(imdl {} {} | [{}])",
+            "(imdl {} [{}])",
             self.model_id,
             self.params.iter().map(|p| p.to_string()).join(" "),
-            self.fwd_guard_bindings.iter().map(|(b, v)| format!("{b}: {v}")).join(", ")
+            //self.fwd_guard_bindings.iter().map(|(b, v)| format!("{b}: {v}")).join(", ")
         )?;
 
         Ok(())

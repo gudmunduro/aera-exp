@@ -4,7 +4,7 @@ use crate::runtime::learning::utils::{
 };
 use crate::types::cst::{Cst, ICst};
 use crate::types::functions::Function;
-use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
+use crate::types::models::{BoundModel, IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::value::Value;
@@ -15,6 +15,8 @@ use crate::types::{
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::vec;
+use crate::runtime::learning::model_comparison::compare_model_effects;
+use crate::runtime::utils::all_req_models;
 
 pub type PatternValueMap = HashMap<Value, String>;
 
@@ -42,10 +44,15 @@ pub fn extract_patterns(
         &system.models[&cmd_model].clone(),
         system,
     );
-    println!("{:#?}", system.csts[&cst]);
-    println!("{:#?}", system.models[&cmd_model]);
-    println!("{:#?}", system.models[&req_model]);
+    println!("{}", system.csts[&cst]);
+    println!("{}", system.models[&cmd_model]);
+    println!("{}", system.models[&req_model]);
     println!("Learned new models");
+
+    let cst = system.csts[&cst].clone();
+    let cmd_model = system.models[&cmd_model].clone();
+    let req_model = system.models[&req_model].clone();
+    check_and_merge_with_existing_model(&cst, &req_model, &cmd_model, system);
 }
 
 fn find_existing_cst(change: &EntityVarChange, system: &System) -> Option<String> {
@@ -137,6 +144,7 @@ fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> St
             .map(|b| PatternItem::Binding(b.clone()))
             .collect(),
     });
+    // TODO: Reuse same name for all param values, since names are shared across model triplet
     let rhs = MdlRightValue::IMdl(IMdl {
         model_id: command_model.model_id.clone(),
         params: command_model
@@ -378,4 +386,68 @@ fn create_bindings_for_value(
         // Don't create bindings for constant values
         Value::ConstantNumber(_) => {}
     }
+}
+
+// Check if the newly formed model triplet is the same as an existing one, except for only conditions in the CST
+// and if it is, then merge it into the prior model (by removing unnecessary conditions)
+fn check_and_merge_with_existing_model(cst: &Cst, req_model: &Mdl, casual_model: &Mdl, system: &mut System) {
+    // Start by comparing casual model, are patterns the same in lhs, rhs and guards
+    // Check if imdl pattern in req_model is the same
+    // Find variables used in imdl pattern, check if those specific variables are the same in CSTs
+    // Create a new CST, with only the facts that appear in both
+    // Recreate icst in req model to fit the new cst
+
+    let req_models = all_req_models(system);
+    let Some((new_cst, new_req_model, new_casual_model)) = req_models.into_iter()
+        .filter_map(|req_model2| {
+            match &req_model2.right.pattern {
+                MdlRightValue::IMdl(imdl) if req_model2.model_id != req_model.model_id => {
+                    let casual_model = system.models.get(&imdl.model_id)?.clone();
+                    Some((req_model2, casual_model))
+                }
+                _ => None
+            }
+        })
+        .filter(|(req_model2, casual_model2)| quick_compare_models(req_model, casual_model, req_model2, casual_model2))
+        .map(|(req_model, casual_model)| {
+            log::debug!("Found quick match to merge {}", req_model.model_id);
+            let cst_id = &req_model.left.pattern.as_icst().cst_id;
+            let cst = system.csts.get(cst_id).expect("Cst from req model missing");
+            (cst.clone(), req_model, casual_model)
+        })
+        .filter_map(|(cst2, req_model2, casual_model2)| {
+            let new_cst = compare_model_effects(&cst2, &req_model2, &casual_model2, cst, req_model, casual_model, system)?;
+            Some((new_cst, req_model2, casual_model2))
+        })
+        .next() else {
+        return;
+    };
+
+    let new_cst_id = new_cst.cst_id.clone();
+    system.csts.insert(new_cst_id.clone(), new_cst);
+    let new_cst = system.csts.get(&new_cst_id).unwrap();
+    let new_req_model_ref = system.models.get_mut(&new_req_model.model_id).unwrap();
+    new_req_model_ref.left = new_req_model_ref.left.with_pattern(MdlLeftValue::ICst(ICst {
+      cst_id: new_cst.cst_id.clone(),
+        params: new_cst.binding_params()
+            .iter()
+            .map(|b| PatternItem::Binding(b.clone()))
+            .collect(),
+    }));
+
+    println!("Merged into existing model");
+    println!("{new_cst}");
+    println!("{req_model_ref}");
+
+    system.csts.remove(&cst.cst_id);
+    system.models.remove(&req_model.model_id);
+    system.models.remove(&casual_model.model_id);
+}
+
+fn quick_compare_models(req_model1: &Mdl, casual_model1: &Mdl, req_model2: &Mdl, casual_model2: &Mdl) -> bool {
+    let lhs_cmd_matches = matches!((&casual_model1.left.pattern, &casual_model2.left.pattern), (MdlLeftValue::Command(cmd1), MdlLeftValue::Command(cmd2)) if cmd1.name == cmd2.name);
+    let rhs_var_matches = matches!((&casual_model1.right.pattern, &casual_model2.right.pattern), (MdlRightValue::MkVal(mk_val1), MdlRightValue::MkVal(mk_val2)) if mk_val1.var_name == mk_val2.var_name);
+    let imdl_param_count_matches = matches!((&req_model1.right.pattern, &req_model2.right.pattern), (MdlRightValue::IMdl(imdl1), MdlRightValue::IMdl(imdl2)) if imdl1.params.len() == imdl2.params.len());
+
+    lhs_cmd_matches && rhs_var_matches && imdl_param_count_matches
 }

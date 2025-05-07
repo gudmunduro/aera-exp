@@ -12,6 +12,8 @@ use crate::types::EntityVariableKey;
 use std::process::exit;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tap::Pipe;
+use crate::types::runtime::{System, SystemTime};
 
 pub fn run_demo() {
     run_aera(
@@ -94,8 +96,7 @@ pub fn run_hand_grab_sphere_learn_demo() {
 
                 if current_pos == cube_pos {
                     *holding = Value::Vec(vec![Value::EntityId("c".to_string())]);
-                }
-                else if current_pos == sphere_pos {
+                } else if current_pos == sphere_pos {
                     *holding = Value::Vec(vec![Value::EntityId("s".to_string())]);
                 }
             }
@@ -114,6 +115,91 @@ pub fn run_hand_grab_sphere_learn_demo() {
     );
 }
 
+pub fn run_simulated_robot_learn_demo() {
+    fn insert_sift_features(active_features: &[usize], entity: &str, system: &mut System) {
+        for i in active_features {
+            system.current_state.variables.insert(EntityVariableKey::new(entity, &format!("sift{i}")), Value::ConstantNumber(1.0));
+        }
+    }
+
+    run_aera(
+        seeds::robot_sift_learn::setup_robot_sift_learn_seed,
+        |system| {
+            if system.current_state.variables.is_empty() {
+                system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(200.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![]));
+
+                system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(200.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(136.0, 5.0), Value::UncertainNumber(126.0, 5.0)]));
+                system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                insert_sift_features(&[0], "co1", system);
+            }
+        },
+        |cmd, system| match &cmd.name[..] {
+            "move" | "grab" | "release" => {
+                system.current_state.variables.clear();
+                let frame = system.current_state.time.pipe_ref(|t| match t { SystemTime::Exact(t) => *t / 100, _ => panic!() });
+                log::debug!("Got to frame {frame}");
+                if frame == 0 {
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(240.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![]));
+
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(240.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(-90.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(133.0, 5.0), Value::UncertainNumber(170.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                    insert_sift_features(&[0], "co1", system);
+                }
+                else if frame == 1 {
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(240.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![]));
+
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(240.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(-90.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(143.0, 5.0), Value::UncertainNumber(159.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                    insert_sift_features(&[1, 2, 3, 4, 5], "co1", system);
+                }
+                else if frame == 2 {
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(240.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![Value::EntityId("co1".to_string())]));
+
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(240.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(143.0, 5.0), Value::UncertainNumber(159.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                    insert_sift_features(&[1, 2, 3, 4, 5], "co1", system);
+                }
+                else if frame == 3 {
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(240.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![]));
+
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(240.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(-90.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(143.0, 5.0), Value::UncertainNumber(159.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                    insert_sift_features(&[1, 2, 3, 4], "co1", system);
+                }
+                else if frame == 4 {
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![Value::UncertainNumber(240.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(0.0, 0.1), Value::UncertainNumber(180.0, 0.1)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![Value::EntityId("co1".to_string())]));
+
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![Value::UncertainNumber(240.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(0.0, 5.0), Value::UncertainNumber(180.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "pos"), Value::Vec(vec![Value::UncertainNumber(143.0, 5.0), Value::UncertainNumber(159.0, 5.0)]));
+                    system.current_state.variables.insert(EntityVariableKey::new("co1", "color"), Value::Vec(vec![Value::Number(1.0)]));
+                    insert_sift_features(&[1, 2, 3, 4], "co1", system);
+                }
+                else if frame == 3 {
+                    exit(0);
+                }
+            }
+            "no_action" => {
+                let frame = system.current_state.time.pipe_ref(|t| match t { SystemTime::Exact(t) => *t / 100, _ => panic!() });
+                if frame >= 3 {
+                    exit(0);
+                }
+            }
+            _ => {}
+        }
+    )
+}
+
 #[allow(unused)]
 pub fn run_with_tcp() {
     let tcp_receive_interface = Arc::new(Mutex::new(
@@ -122,7 +208,7 @@ pub fn run_with_tcp() {
     let tcp_send_interface = tcp_receive_interface.clone();
 
     run_aera(
-        seeds::robot_advanced_move::setup_robot_advanced_seed,
+        seeds::robot_sift_learn::setup_robot_sift_learn_seed,
         |system| {
             let tcp_variables = tcp_receive_interface.lock().unwrap().update_variables();
             system.current_state.variables = tcp_variables;

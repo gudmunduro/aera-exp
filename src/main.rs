@@ -11,7 +11,7 @@ pub mod protobuf {
 fn main() {
     setup_logging();
 
-    runtime::run_hand_grab_sphere_learn_demo();
+    runtime::run_simulated_robot_learn_demo();
 }
 
 fn setup_logging() {

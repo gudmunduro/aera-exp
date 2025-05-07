@@ -2,7 +2,7 @@ use crate::types::models::IMdl;
 use crate::types::pattern::{Pattern, PatternItem};
 use crate::types::runtime::SystemState;
 use crate::types::value::Value;
-use crate::types::{Fact, MkVal};
+use crate::types::{Command, Fact, MkVal};
 use itertools::Itertools;
 use std::collections::HashMap;
 use crate::types::cst::ICst;
@@ -114,6 +114,17 @@ pub fn compare_icsts(
         allow_unbound,
         allow_different_length,
     )
+}
+
+pub fn compare_commands(
+    cmd1: &Command,
+    cmd2: &Command,
+    allow_unbound: bool,
+    allow_different_length: bool,
+) -> bool {
+    cmd1.name == cmd2.name
+        && compare_pattern_items(&cmd1.entity_id.to_pattern_item(), &cmd2.entity_id.to_pattern_item(), allow_unbound)
+        && compare_patterns(&cmd1.params, &cmd2.params, allow_unbound, allow_different_length)
 }
 
 /// Combine bound values from both to fill in as many values as possible

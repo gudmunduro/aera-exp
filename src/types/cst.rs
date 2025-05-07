@@ -81,6 +81,22 @@ impl Cst {
     }
 }
 
+impl Display for Cst {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}:(cst [] []", &self.cst_id)?;
+        for entity in &self.entities {
+            writeln!(f, "  (fact {entity} : :)")?;
+        }
+        for fact in &self.facts {
+            writeln!(f, "  {fact}")?;
+        }
+        writeln!(f, "|[]")?;
+        write!(f, "|[])")?;
+
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ICst {
     pub cst_id: String,
@@ -154,7 +170,7 @@ impl ICst {
 
 impl Display for ICst {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(icst {} {})", self.cst_id, self.params.iter().map(|p| p.to_string()).join(" "))?;
+        write!(f, "(icst {} [{}])", self.cst_id, self.params.iter().map(|p| p.to_string()).join(" "))?;
 
         Ok(())
     }

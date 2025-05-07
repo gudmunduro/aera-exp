@@ -1,6 +1,7 @@
 use crate::types::pattern::PatternItem;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use crate::types::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,5 +89,22 @@ impl Function {
             Function::ConvertToEntityId(f) => f.binding_params(),
             Function::ConvertToNumber(f) => f.binding_params(),
         }
+    }
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Function::Value(v) => write!(f, "{v}")?,
+            Function::Add(f1, f2) => write!(f, "(+ {f1} {f2})")?,
+            Function::Sub(f1, f2) => write!(f, "(- {f1} {f2})")?,
+            Function::Mul(f1, f2) => write!(f, "(* {f1} {f2})")?,
+            Function::Div(f1, f2) => write!(f, "(/ {f1} {f2})")?,
+            Function::List(l) => write!(f, "[{}]", l.iter().map(|v| v.to_string()).join(" "))?,
+            Function::ConvertToEntityId(func) => write!(f, "(toEntityId {func})")?,
+            Function::ConvertToNumber(func) => write!(f, "(toNumber {func})")?
+        }
+
+        Ok(())
     }
 }
