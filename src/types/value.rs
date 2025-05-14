@@ -62,12 +62,12 @@ impl PartialEq<Value> for Value {
         match (self, other) {
             (Value::Number(n), Value::Number(n2)) => float_cmp(*n, *n2, 0.1),
             (Value::ConstantNumber(n), Value::ConstantNumber(n2)) => float_cmp(*n, *n2, 0.1),
+            (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) => {
+                probability_density(*m1, *m2, (*s1).max(*s2)) > 0.001
+            }
             ((Value::Number(n) | Value::ConstantNumber(n)), Value::UncertainNumber(m, s))
             | (Value::UncertainNumber(m, s), (Value::Number(n) | Value::ConstantNumber(n))) => {
                 probability_density(*n, *m, *s) > 0.001
-            }
-            (Value::UncertainNumber(m1, s1), Value::UncertainNumber(m2, s2)) if float_eq(*s1, *s2) => {
-                probability_density(*m1, *m2, *s1) > 0.001
             }
             (Value::String(s), Value::String(s2)) => s == s2,
             (Value::Vec(v), Value::Vec(v2)) => v == v2,
@@ -189,9 +189,9 @@ impl Div<Value> for Value {
 impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Value::Number(v) => ((v * 10.0) as i64).hash(state),
-            Value::ConstantNumber(v) => ((v * 10.0) as i64).hash(state),
-            Value::UncertainNumber(m, s) => [(m * 10.0) as i64, (s * 10.0) as i64].hash(state),
+            Value::Number(v) => ((v / 100.0).round().abs() as i64).hash(state),
+            Value::ConstantNumber(v) => ((v / 100.0).round().abs() as i64).hash(state),
+            Value::UncertainNumber(v, _) => ((v / 100.0).round().abs() as i64).hash(state),
             Value::String(s) => s.hash(state),
             Value::Vec(v) => v.hash(state),
             Value::EntityId(e) => e.hash(state)

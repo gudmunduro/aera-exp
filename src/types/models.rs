@@ -598,6 +598,21 @@ impl BoundModel {
         self.model.right.pattern.filled_in(&self.bindings)
     }
 
+    pub fn extend_bindings_with_lhs_input(&self, input: &Fact<MdlLeftValue>) -> Option<BoundModel> {
+        let PatternMatchResult::True(mut bindings) = self.model.left.pattern.matches(&self.bindings, &input.pattern) else {
+            return None;
+        };
+        // Combine bindings from input facts and those that were already in the model
+        bindings.extend(self.bindings.clone());
+        let mut model = BoundModel {
+            model: self.model.clone(),
+            bindings
+        };
+        model.compute_forward_bindings();
+
+        Some(model)
+    }
+
     /// Predict what happens to SystemState after model is executed
     /// Only meant to be used for casual models, has no effect on other types of models
     /// At the moment this does not take into account changes that other models predict will take place when the same action is taken

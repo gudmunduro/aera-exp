@@ -10,7 +10,7 @@ use crate::runtime::utils::all_req_models;
 use crate::types::cst::BoundCst;
 use crate::types::value::Value;
 
-const MAX_FWD_CHAIN_DEPTH: u64 = 20;
+const MAX_FWD_CHAIN_DEPTH: u64 = 2;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -119,6 +119,8 @@ fn forward_chain_rec(
             // since some of them need bindings that we get from forward chaining
             fwd_chained_model.compute_backward_bindings();
             fwd_chained_model.compute_forward_bindings();
+
+            log::debug!("Added final casual model {}", fwd_chained_model.imdl_for_model());
 
             final_casual_models.push(fwd_chained_model);
         }
@@ -257,9 +259,26 @@ pub fn predict_all_changes_of_command(command: &RuntimeCommand, system: &System)
         .collect_vec();
     fwd_chained_casual_models
         .iter()
+        .filter(|(_, anti)| !*anti)
         .filter_map(|(mdl, _)| {
             let bound_mdl = mdl.instantiate(&HashMap::new(), system);
-            Some((bound_mdl.deduce(&lhs_cmd, &anti_requirements_ref)?, bound_mdl.imdl_for_model()))
+            if bound_mdl.model.is_reuse_model() {
+                let rhs = fwd_chained_casual_models
+                    .iter()
+                    .filter(|(_, anti)| !*anti)
+                    .filter_map(|(mdl2, _)| {
+                        let mdl2 = mdl2.instantiate(&HashMap::new(), &system).extend_bindings_with_lhs_input(&lhs_cmd)?.imdl_for_model();
+                        bound_mdl.deduce(&Fact::new(MdlLeftValue::IMdl(mdl2), TimePatternRange::wildcard()), &anti_requirements_ref)
+                    })
+                    .next()?;
+                Some((rhs, bound_mdl.imdl_for_model()))
+            }
+            else if bound_mdl.model.is_casual_model() {
+                Some((bound_mdl.deduce(&lhs_cmd, &anti_requirements_ref)?, bound_mdl.imdl_for_model()))
+            }
+            else {
+                None
+            }
         })
         .filter_map(|(rhs, imdl)| match &rhs.pattern {
             MdlRightValue::MkVal(f) => Some(

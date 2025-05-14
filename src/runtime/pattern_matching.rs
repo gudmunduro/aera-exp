@@ -4,7 +4,7 @@ use crate::types::runtime::SystemState;
 use crate::types::value::Value;
 use crate::types::{Command, Fact, MkVal};
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::types::cst::ICst;
 
 pub enum PatternMatchResult {
@@ -183,6 +183,24 @@ pub fn fill_in_pattern_with_bindings(
             p
         })
         .collect()
+}
+
+pub fn extract_bindings_from_pattern(pattern: &Pattern) -> HashSet<String> {
+    let mut binding_set = HashSet::new();
+    for p in pattern {
+        match p {
+            PatternItem::Binding(b) => {
+                binding_set.insert(b.clone());
+            }
+            PatternItem::Vec(v) => {
+                binding_set.extend(extract_bindings_from_pattern(v));
+            }
+            PatternItem::Value(_) => {}
+            PatternItem::Any => {}
+        }
+    }
+
+    binding_set
 }
 
 pub fn extract_bindings_from_patterns(

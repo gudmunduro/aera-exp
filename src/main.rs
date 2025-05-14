@@ -11,7 +11,7 @@ pub mod protobuf {
 fn main() {
     setup_logging();
 
-    runtime::run_simulated_robot_learn_demo();
+    runtime::run_with_tcp();
 }
 
 fn setup_logging() {

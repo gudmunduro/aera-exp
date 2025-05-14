@@ -1,10 +1,20 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use crate::types::{EntityPatternValue, EntityVariableKey, Fact, MkVal};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
 
-pub type PatternValueMap = HashMap<Value, String>;
+pub type PatternValueMap = HashMap<ValueKey, String>;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ValueKey(pub Value);
+
+impl Hash for ValueKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        1.hash(state);
+    }
+}
 
 pub struct EntityVarChange {
     pub entity: EntityVariableKey,
@@ -97,27 +107,33 @@ pub fn create_pattern_for_values(
 ) -> Vec<PatternItem> {
     values
         .iter()
-        .map(|v| create_pattern_for_value(v, pattern_value_map))
+        .map(|v| create_pattern_for_value(v, pattern_value_map, false))
         .collect()
 }
 
 pub fn create_pattern_for_value(
     value: &Value,
     pattern_value_map: &mut PatternValueMap,
+    insert_constant_for_unknown: bool,
 ) -> PatternItem {
     match value {
         Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
-            if !pattern_value_map.contains_key(value) {
-                let binding = format!("v{}", pattern_value_map.len());
-                pattern_value_map.insert(value.clone(), binding.clone());
-                PatternItem::Binding(binding)
+            if !pattern_value_map.contains_key(&ValueKey(value.clone())) {
+                if insert_constant_for_unknown {
+                    PatternItem::Value(value.clone())
+                }
+                else {
+                    let binding = format!("v{}", pattern_value_map.len());
+                    pattern_value_map.insert(ValueKey(value.clone()), binding.clone());
+                    PatternItem::Binding(binding)
+                }
             } else {
-                PatternItem::Binding(pattern_value_map[value].clone())
+                PatternItem::Binding(pattern_value_map[&ValueKey(value.clone())].clone())
             }
         }
         Value::Vec(vec) => PatternItem::Vec(
             vec.iter()
-                .map(|v| create_pattern_for_value(v, pattern_value_map))
+                .map(|v| create_pattern_for_value(v, pattern_value_map, insert_constant_for_unknown))
                 .collect(),
         ),
         Value::ConstantNumber(_) => PatternItem::Value(value.clone()),
@@ -126,14 +142,14 @@ pub fn create_pattern_for_value(
 
 pub fn create_bindings_for_value(
     value: &Value,
-    pattern_value_map: &mut HashMap<Value, String>,
+    pattern_value_map: &mut PatternValueMap,
     binding_prefix: &str,
     start_index: &mut i32,
 ) {
     match value {
         Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
-            if !pattern_value_map.contains_key(value) {
-                pattern_value_map.insert(value.clone(), format!("{binding_prefix}{start_index}"));
+            if !pattern_value_map.contains_key(&ValueKey(value.clone())) {
+                pattern_value_map.insert(ValueKey(value.clone()), format!("{binding_prefix}{start_index}"));
                 *start_index += 1;
             }
         }

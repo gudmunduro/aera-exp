@@ -29,7 +29,7 @@ pub fn extract_patterns(executed_command: &RuntimeCommand, system: &mut System, 
         let Some(old_value) = state_before.variables.get(key) else {
             continue
         };
-        log::debug!("Expected change {predicted_value} on {key:?}");
+        log::debug!("Expected change {predicted_value} on {key:?} using model {}", model.model_id);
         // The state did not change when we expected it to
         if &current_value != predicted_value {
             log::debug!("Change did not happen");

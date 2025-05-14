@@ -1,4 +1,4 @@
-use crate::runtime::learning::utils::{change_intersects_entity_var, change_intersects_fact, compute_vec_norm, create_bindings_for_value, create_pattern_for_value, create_pattern_for_values, generate_casual_model_name, generate_cst_name, generate_req_model_name, EntityVarChange, PatternValueMap};
+use crate::runtime::learning::utils::{change_intersects_entity_var, change_intersects_fact, compute_vec_norm, create_bindings_for_value, create_pattern_for_value, create_pattern_for_values, generate_casual_model_name, generate_cst_name, generate_req_model_name, EntityVarChange, PatternValueMap, ValueKey};
 use crate::types::cst::{Cst, ICst};
 use crate::types::functions::Function;
 use crate::types::models::{BoundModel, IMdl, Mdl, MdlLeftValue, MdlRightValue};
@@ -112,10 +112,21 @@ fn form_new_command_model(
         params: create_pattern_for_values(&cmd.params, pattern_value_map),
     });
     let (fwd_guards, bwd_guards) = create_delta_guards(pattern_value_map);
+
+    // Remove all consequent bindings unless there is a delta guard that computes it (otherwise it's useless, and we just want to include a constant)
+    pattern_value_map
+        .retain(|_, b| !b.starts_with("C")
+            || b.starts_with("CMD")
+            || fwd_guards.iter().any(|(gb, _)| b == gb));
+
+    if cmd.name == "release" {
+        log::debug!("Release command");
+    }
+
     let rhs = MdlRightValue::MkVal(MkVal {
         entity_id: EntityPatternValue::Binding("PE".to_string()),
         var_name: change.entity.var_name.clone(),
-        value: create_pattern_for_value(&change.after, pattern_value_map),
+        value: create_pattern_for_value(&change.after, pattern_value_map, true),
         assumption: false,
     });
 
@@ -148,19 +159,19 @@ fn create_delta_guards(pattern_value_map: &PatternValueMap) -> (Vec<(String, Fun
     let premise_values: HashMap<_, _> = pattern_value_map
         .iter()
         .filter(|(v, b)| {
-            b.starts_with("P") && matches!(v, Value::Number(_) | Value::UncertainNumber(_, _))
+            b.starts_with("P") && matches!(&v.0, Value::Number(_) | Value::UncertainNumber(_, _))
         })
         .collect();
     let cmd_values: HashMap<_, _> = pattern_value_map
         .iter()
         .filter(|(v, b)| {
-            b.starts_with("CMD") && matches!(v, Value::Number(_) | Value::UncertainNumber(_, _))
+            b.starts_with("CMD") && matches!(&v.0, Value::Number(_) | Value::UncertainNumber(_, _))
         })
         .collect();
 
     let (fwd_guards, bwd_guards) = non_matching_c_values
         .iter()
-        .filter_map(|(v, b)| create_delta_guard(v, b, &premise_values, &cmd_values))
+        .filter_map(|(v, b)| create_delta_guard(&v.0, b, &premise_values, &cmd_values))
         .unzip();
     (fwd_guards, bwd_guards)
 }
@@ -168,15 +179,15 @@ fn create_delta_guards(pattern_value_map: &PatternValueMap) -> (Vec<(String, Fun
 fn create_delta_guard(
     value: &Value,
     binding: &str,
-    premise_values: &HashMap<&Value, &String>,
-    cmd_values: &HashMap<&Value, &String>,
+    premise_values: &HashMap<&ValueKey, &String>,
+    cmd_values: &HashMap<&ValueKey, &String>,
 ) -> Option<((String, Function), (String, Function))> {
     let addition = premise_values
         .iter()
-        .filter_map(|(pv, pb)| {
+        .filter_map(|(ValueKey(pv), pb)| {
             cmd_values
                 .iter()
-                .filter_map(|(cv, cb)| {
+                .filter_map(|(ValueKey(cv), cb)| {
                     if (*pv).clone() + (*cv).clone() == *value {
                         Some((pb, cb))
                     } else {
@@ -228,15 +239,15 @@ fn compare_values_for_guard(value1: &Value, value2: &Value) -> bool {
 fn create_initial_pattern_value_map(
     change: &EntityVarChange,
     executed_command: &RuntimeCommand,
-) -> HashMap<Value, String> {
+) -> PatternValueMap {
     let mut map = HashMap::new();
     map.insert(
-        Value::EntityId(change.entity.entity_id.clone()),
+        ValueKey(Value::EntityId(change.entity.entity_id.clone())),
         "PE".to_string(),
     );
     if executed_command.entity_id != change.entity.entity_id {
         map.insert(
-            Value::EntityId(executed_command.entity_id.clone()),
+            ValueKey(Value::EntityId(executed_command.entity_id.clone())),
             "CMD_E".to_string(),
         );
     }

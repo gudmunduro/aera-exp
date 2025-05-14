@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use itertools::Itertools;
-use crate::runtime::learning::utils::{change_intersects_entity_var, create_pattern_for_value, generate_cst_name, EntityVarChange, PatternValueMap};
+use crate::runtime::learning::utils::{change_intersects_entity_var, create_pattern_for_value, generate_cst_name, EntityVarChange, PatternValueMap, ValueKey};
 use crate::types::cst::Cst;
 use crate::types::{EntityDeclaration, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange};
 use crate::types::pattern::PatternItem;
@@ -39,12 +40,24 @@ fn form_new_cst_from_entity_vars(
     pattern_value_map: &mut PatternValueMap,
     system: &System,
 ) -> Cst {
+    let mut entities_for_class: HashMap<String, String> = HashMap::new();
     let mut facts = Vec::new();
     for (key, value, is_premise) in entity_vars {
-        let value: PatternItem = create_pattern_for_value(value, pattern_value_map);
+        let entity_class = system.find_class_of_entity(&key.entity_id).unwrap();
+        if let Some(class_entity) = entities_for_class.get(&entity_class) {
+            if class_entity != &key.entity_id {
+                // Don't allow more than one entity of the same class
+                continue
+            }
+        }
+        else {
+            entities_for_class.insert(entity_class, key.entity_id.to_string());
+        }
+
+        let value: PatternItem = create_pattern_for_value(value, pattern_value_map, false);
 
         let entity_var = Value::EntityId(key.entity_id.clone());
-        let entity_binding: String = match create_pattern_for_value(&entity_var, pattern_value_map)
+        let entity_binding: String = match create_pattern_for_value(&entity_var, pattern_value_map, false)
         {
             PatternItem::Binding(b) => b,
             _ => panic!("Invalid pattern created for entity value"),
@@ -62,7 +75,7 @@ fn form_new_cst_from_entity_vars(
 
     let entities = pattern_value_map
         .iter()
-        .filter_map(|(v, b)| match v {
+        .filter_map(|(ValueKey(v), b)| match v {
             Value::EntityId(e) => Some(EntityDeclaration::new(b, &system.find_class_of_entity(e).unwrap())),
             _ => None
         })

@@ -59,7 +59,6 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("dpx".to_string()),
                         PatternItem::Binding("dpy".to_string()),
-                        PatternItem::Binding("dpz".to_string()),
                         PatternItem::Binding("px".to_string()),
                         PatternItem::Binding("py".to_string()),
                         PatternItem::Binding("pz".to_string()),
@@ -85,7 +84,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     params: vec![PatternItem::Vec(vec![
                         PatternItem::Binding("dpx".to_string()),
                         PatternItem::Binding("dpy".to_string()),
-                        PatternItem::Binding("dpz".to_string()),
+                        PatternItem::Value(Value::Number(0.0)),
                         PatternItem::Value(Value::Number(0.0)),
                     ])],
                 }),
@@ -95,7 +94,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("h".to_string()),
                     var_name: "position".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string()), PatternItem::Binding("npz".to_string()), PatternItem::Binding("pw".to_string())]),
+                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
                     assumption: false,
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -113,13 +112,6 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("dpy".to_string()))),
                 ),
                 ),
-                (
-                    "npz".to_string(),
-                    Function::Add(
-                        Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
-                        Box::new(Function::Value(PatternItem::Binding("dpz".to_string()))),
-                    ),
-                ),
             ]
                 .into(),
             backward_computed: [(
@@ -135,13 +127,6 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
                     Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
                 ),
-                ),
-                (
-                    "dpz".to_string(),
-                    Function::Sub(
-                        Box::new(Function::Value(PatternItem::Binding("npz".to_string()))),
-                        Box::new(Function::Value(PatternItem::Binding("pz".to_string()))),
-                    ),
                 ),
             ].into(),
             confidence: 1.0,
@@ -167,8 +152,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 Fact::new(
                     MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
-                        var_name: "position".to_string(),
-                        value: PatternItem::Value(Value::Vec(vec![Value::Number(145.0), Value::Number(173.0)])),
+                        var_name: "approximate_pos".to_string(),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Any, PatternItem::Binding("pw".to_string())]),
                         assumption: false,
                     },
                     TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -279,7 +264,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
                         var_name: "color".to_string(),
-                        value: PatternItem::Binding("col".to_string()),
+                        value: PatternItem::Vec(vec![PatternItem::Binding("col".to_string())]),
                         assumption: false,
                     },
                     TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -412,7 +397,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     entity_id: EntityPatternValue::Binding("co".to_string()),
                     var_name: "approximate_pos".to_string(),
                     value: PatternItem::Binding("np".to_string()),
-                    assumption: true,
+                    assumption: false,
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             ),
@@ -441,7 +426,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
 
     // Moving changes cam position of cubes
 
-    system.csts.insert(
+    /*system.csts.insert(
         "S_cube_pos".to_string(),
         Cst {
             cst_id: "S_cube_pos".to_string(),
@@ -450,7 +435,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
                         var_name: "obj_type".to_string(),
-                        value: PatternItem::Value(Value::Number(0.0)),
+                        value: PatternItem::Value(Value::Vec(vec![Value::Number(0.0)])),
                         assumption: false,
                     },
                     TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -519,7 +504,6 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                         PatternItem::Binding("h".to_string()),
                         PatternItem::Binding("dx".to_string()),
                         PatternItem::Binding("dy".to_string()),
-                        PatternItem::Value(Value::Number(0.0)),
                         PatternItem::Any,
                         PatternItem::Any,
                         PatternItem::Any,
@@ -578,15 +562,78 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ].into(),
             confidence: 1.0,
         },
-    );
+    );*/
 
-    system.babble_command.push(RuntimeCommand {
+    /*system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
                 Value::Number(40.0),
                 Value::Number(0.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });*/
+
+    // Babble commands for basic demo (that doesn't use tcp)
+    /*system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+
+    system.goals = vec![
+        vec![
+            Fact::new(MkVal {
+                entity_id: EntityPatternValue::EntityId("h".to_string()),
+                var_name: "holding".to_string(),
+                value: PatternItem::Vec(vec![PatternItem::Binding("co1".to_string())]),
+                assumption: false,
+            }, TimePatternRange::wildcard())
+        ]
+    ];*/
+
+    // Simpler demo
+    /*
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(40.0),
+                Value::Number(30.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -598,9 +645,40 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });*/
+
+
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(40.0),
+                Value::Number(30.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(-80.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
     });
     system.babble_command.push(RuntimeCommand {
         name: "release".to_string(),
@@ -608,9 +686,33 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(60.0),
+                Value::Number(50.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(-60.0),
+                Value::Number(-50.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
     });
     system.babble_command.push(RuntimeCommand {
         name: "release".to_string(),
@@ -618,15 +720,55 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
+        name: "move".to_string(),
         entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(-40.0),
+                Value::Number(50.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
     });
 
-    system.goals = vec![];
+
+
+    system.goals = vec![
+        /*vec![
+            Fact::new(MkVal {
+                entity_id: EntityPatternValue::EntityId("h".to_string()),
+                var_name: "holding".to_string(),
+                value: PatternItem::Value(Value::Vec(vec![
+                    Value::EntityId("co1".to_string())
+                ])),
+                assumption: false,
+            }, TimePatternRange::wildcard()),
+        ],*/
+        vec![
+            Fact::new(MkVal {
+                //entity_id: EntityPatternValue::Binding("co_o".to_string()),
+                entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                var_name: "approximate_pos".to_string(),
+                value: PatternItem::Value(Value::Vec(vec![
+                    Value::UncertainNumber(228.00441002220657, 10.0),
+                    Value::UncertainNumber(-49.99883096646674, 10.0),
+                    Value::UncertainNumber(-100.0, 10.0),
+                    Value::UncertainNumber(180.0, 10.0)
+                ])),
+                assumption: false,
+            }, TimePatternRange::wildcard()),
+            /*Fact::new(MkVal {
+                entity_id: EntityPatternValue::Binding("co_o".to_string()),
+                var_name: "approximate_pos".to_string(),
+                value: PatternItem::Value(Value::Vec(vec![
+                    Value::UncertainNumber(228.00441002220657, 10.0),
+                    Value::UncertainNumber(-49.99883096646674, 10.0),
+                    Value::UncertainNumber(-100.0, 10.0),
+                    Value::UncertainNumber(180.0, 10.0)
+                ])),
+                assumption: false,
+            }, TimePatternRange::wildcard()),*/
+        ],
+    ];
 }

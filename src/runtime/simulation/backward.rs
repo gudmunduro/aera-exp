@@ -1,4 +1,4 @@
-use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_duplicate_bindings_from_pattern};
+use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
 use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models};
 use crate::types::cst::Cst;
 use crate::types::models::{AbductionResult, IMdl, Mdl, MdlRightValue};
@@ -6,10 +6,10 @@ use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
 use crate::types::{EntityDeclaration, Fact, MkVal, TimePatternRange};
-use itertools::Itertools;
-use std::collections::HashMap;
+use itertools::{all, Itertools};
+use std::collections::{HashMap, HashSet};
 
-const MAX_DEPTH: usize = 10;
+const MAX_DEPTH: usize = 5;
 
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let mut instantiable_cas_mdl = Vec::new();
@@ -134,7 +134,13 @@ fn get_goal_requirements_for_goal(
         for (sub_goal, sub_goal_cst_id) in sub_goals {
             let sub_goal_entities = sub_goal_cst_id
                 .map(|cst_id| &data.csts.get(&cst_id).unwrap().entities);
-            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, data);
+
+            let sub_goal_relevant_bindings = match &goal_model_bm.model.right.pattern {
+                MdlRightValue::IMdl(imdl) => extract_bindings_from_pattern(&imdl.params),
+                MdlRightValue::MkVal(mk_val) => extract_bindings_from_pattern(&mk_val.value.pattern())
+            };
+
+            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, &sub_goal_relevant_bindings, data);
             all_sub_goals.insert(0, sub_goal);
 
             for sub_goal in &all_sub_goals {
@@ -173,6 +179,7 @@ fn get_goal_requirements_for_goal(
 fn create_variations_of_sub_goal(
     goal: &Vec<Fact<MkVal>>,
     sub_goal_entities: Option<&Vec<EntityDeclaration>>,
+    relevant_bindings: &HashSet<String>,
     system: &System,
 ) -> Vec<Vec<Fact<MkVal>>> {
     let goal_cst = Cst {
@@ -201,7 +208,7 @@ fn create_variations_of_sub_goal(
         .flat_map(|entity_bindings| {
             bindings
                 .iter()
-                .filter(|b| !entity_bindings.contains_key(&**b))
+                .filter(|b| !entity_bindings.contains_key(&**b) && relevant_bindings.iter().contains(b))
                 // Get all possible values for each binding and create a 2d list from them, e.g. [ [("a", 2.0), ("a", 5.0)], [("b", 7.0)] ]
                 .map(|b| {
                     let res = goal

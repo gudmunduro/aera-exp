@@ -1,4 +1,4 @@
-use crate::runtime::learning::utils::{change_intersects_entity_var, create_bindings_for_value, create_pattern_for_value, generate_anti_req_model_name, generate_req_model_name, EntityVarChange, PatternValueMap};
+use crate::runtime::learning::utils::{change_intersects_entity_var, create_bindings_for_value, create_pattern_for_value, generate_anti_req_model_name, generate_req_model_name, EntityVarChange, PatternValueMap, ValueKey};
 use crate::runtime::utils::all_req_models;
 use crate::types::cst::{Cst, ICst};
 use crate::types::models::{IMdl, Mdl, MdlLeftValue, MdlRightValue};
@@ -93,12 +93,12 @@ fn create_initial_pattern_value_map(
 ) -> PatternValueMap {
     let mut map = HashMap::new();
     map.insert(
-        Value::EntityId(entity_var.entity_id.clone()),
+        ValueKey(Value::EntityId(entity_var.entity_id.clone())),
         "PE".to_string(),
     );
     if executed_command.entity_id != entity_var.entity_id {
         map.insert(
-            Value::EntityId(executed_command.entity_id.clone()),
+            ValueKey(Value::EntityId(executed_command.entity_id.clone())),
             "CMD_E".to_string(),
         );
     }
@@ -113,16 +113,16 @@ fn create_initial_pattern_value_map(
 
 fn create_pattern_for_imdl_value(
     value: &Value,
-    limited_pattern_binding_map: &HashMap<&Value, &String>,
+    limited_pattern_binding_map: &HashMap<&ValueKey, &String>,
     binding_count: &mut usize,
 ) -> PatternItem {
     match value {
         Value::Number(_) | Value::UncertainNumber(_, _) | Value::String(_) | Value::EntityId(_) => {
-            if !limited_pattern_binding_map.contains_key(value) {
+            if !limited_pattern_binding_map.contains_key(&ValueKey(value.clone())) {
                 *binding_count += 1;
                 PatternItem::Binding(format!("v{binding_count}"))
             } else {
-                PatternItem::Binding(limited_pattern_binding_map[value].clone())
+                PatternItem::Binding(limited_pattern_binding_map[&ValueKey(value.clone())].clone())
             }
         }
         Value::Vec(vec) => PatternItem::Vec(
