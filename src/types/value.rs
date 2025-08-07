@@ -2,11 +2,12 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Div, Mul, Sub};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use crate::types::pattern::PatternItem;
 use crate::utils::{float_cmp, float_eq};
 use crate::utils::math::probability_density;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Value {
     Number(f64),
     ConstantNumber(f64),

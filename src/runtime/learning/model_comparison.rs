@@ -1,5 +1,5 @@
 use crate::runtime::pattern_matching::{
-    compare_commands, compare_imdls, compare_pattern_items, compare_patterns,
+    compare_commands, compare_imdls, compare_pattern_items,
 };
 use crate::types::cst::Cst;
 use crate::types::functions::Function;
@@ -9,6 +9,7 @@ use crate::types::runtime::System;
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MatchesFact, MkVal};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use crate::types::value::Value;
 
 pub fn compare_model_effects(
     cst: &Cst,
@@ -46,36 +47,53 @@ pub fn compare_model_effects(
     // Check if every binding appears in a fact that is in both csts
     let mut new_cst = Cst::new(cst.cst_id.clone());
     let mut matching_binding_set = HashSet::new();
-    for f in &cst.facts {
-        let Some(f_mapped) = map_fact_bindings(f, &binding_map) else {
+    let mut combined_cst_binding_map = CombinedCstBindingMap::new();
+    let expected_bindings = binding_map.values().cloned().collect::<HashSet<_>>();
+    for e in &cst.entities {
+        let Some(mapped_binding) = binding_map.get(&e.binding) else {
+            // Check if the other cst still has a declaration of the same class, and if it does add a new entry to the binding map.
+            // This is so we will keep facts that are in both csts but whose bindings are not in the imdl
+            if let Some(e2) = other_cst.entities.iter().find(|e2| e2.class == e.class) {
+                // Make sure the binding is not already in a mapping
+                if !binding_map.values().contains(&e2.binding) {
+                    binding_map.insert(e.binding.clone(), e2.binding.clone());
+                    matching_binding_set.insert(e.binding.clone());
+                    let new_binding = combined_cst_binding_map.get_new_var_name(&e.binding, &e2.binding);
+                    new_cst.entities.push(EntityDeclaration::new(&new_binding, &e.class));
+                }
+            }
             continue;
         };
-        if other_cst.facts.iter().any(|f2| {
+        if other_cst.entities.iter().any(|e| &e.binding == mapped_binding && &e.class == &e.class) {
+            matching_binding_set.insert(mapped_binding.clone());
+            let new_binding = combined_cst_binding_map.get_new_var_name(&e.binding, &mapped_binding);
+            new_cst.entities.push(EntityDeclaration::new(&new_binding, &e.class));
+        }
+    }
+    for f in &cst.facts {
+        let Some(f_mapped) = map_fact_bindings(f, &binding_map) else {
+            log::debug!("Skipped fact {f} due to missing binding mappings");
+            continue;
+        };
+        if let Some(f2) = other_cst.facts.iter().find(|f2| {
             f_mapped.pattern.var_name == f2.pattern.var_name
-                && f_mapped.pattern.value == f2.pattern.value
+                && compare_cst_fact_pattern_items(&f_mapped.pattern.value, &f2.pattern.value)
                 && f_mapped.pattern.entity_id == f2.pattern.entity_id
                 && f_mapped.anti == f2.anti
         }) {
-            matching_binding_set.extend(get_fact_binding_set(f));
-            new_cst.facts.push(f.clone());
+            matching_binding_set.extend(get_fact_binding_set(&f_mapped));
+            new_cst.facts.push(merge_facts(f, f2, &mut combined_cst_binding_map));
+        }
+        else {
+            log::debug!("Skipped fact {f} for not being equal");
         }
     }
-    if matching_binding_set.symmetric_difference(&binding_map.values().cloned().collect::<HashSet<_>>()).count() > 0 {
+    if matching_binding_set.symmetric_difference(&expected_bindings).count() > 0 {
         return None;
     }
 
-    // Check if every entity in imdl has the same class in cst
-    let matching_entity_classes = cst.entities.iter()
-        .filter_map(|e| {
-            binding_map.get(&e.binding).map(|b| (b, &e.class))
-        })
-        .collect_vec();
-    let entity_classes_match = matching_entity_classes.iter()
-        .all(|(binding, class)| other_cst.entities.iter().any(|e| &e.binding == *binding && &e.class == *class));
-    if !entity_classes_match {
-        return None;
-    }
-    new_cst.entities = matching_entity_classes.into_iter().map(|(binding, class)| EntityDeclaration::new(binding, class)).collect();
+    // TODO: An entity declaration that apppears only in cst, not imdl, and other facts using said declaration, could still be relevant
+    // TODO: And we are currently dropping those facts, even if they are equivelant in both csts
 
     Some(new_cst)
 }
@@ -107,7 +125,8 @@ fn map_pattern_item_bindings(
     match p {
         PatternItem::Any | PatternItem::Value(_) => Some(p.clone()),
         PatternItem::Binding(binding) => {
-            binding_map.get(binding).cloned().map(PatternItem::Binding)
+            // Temporary solution to allow comparing facts where not all bindings are in binding map
+            Some(binding_map.get(binding).cloned().map(PatternItem::Binding).unwrap_or(PatternItem::Any))
         }
         PatternItem::Vec(v) => {
             let res: Option<Vec<PatternItem>> = v
@@ -233,5 +252,148 @@ fn compare_functions(function1: &Function, function2: &Function) -> bool {
         }
         (Function::ConvertToNumber(f1), Function::ConvertToNumber(f2)) => compare_functions(f1, f2),
         (_, _) => false,
+    }
+}
+
+
+pub fn compare_cst_fact_patterns(
+    pattern1: &Pattern,
+    pattern2: &Pattern,
+) -> bool {
+    if pattern1.len() != pattern2.len() {
+        return false;
+    }
+
+    pattern1.iter().zip(pattern2).all(|(p1, p2)| compare_cst_fact_pattern_items(p1, p2))
+}
+
+pub fn compare_cst_fact_pattern_items(
+    pattern_item1: &PatternItem,
+    pattern_item2: &PatternItem,
+) -> bool {
+    match pattern_item1 {
+        PatternItem::Any => true,
+        PatternItem::Binding(b1) =>  match pattern_item2 {
+            PatternItem::Binding(b2) => b1 == b2,
+            _ => true
+        },
+        PatternItem::Value(v1) => match pattern_item2 {
+            PatternItem::Any => true,
+            PatternItem::Binding(_) => false,
+            PatternItem::Value(v2) => v1 == v2,
+            PatternItem::Vec(v2) => match v1 {
+                Value::Vec(v1) => v1 == v2,
+                _ => false,
+            },
+        },
+        PatternItem::Vec(v1) => match pattern_item2 {
+            PatternItem::Any => true,
+            PatternItem::Binding(_) => false,
+            PatternItem::Vec(v2) => compare_cst_fact_patterns(v1, v2),
+            PatternItem::Value(Value::Vec(v2)) => v2 == v1,
+            PatternItem::Value(_) => false,
+        }
+    }
+}
+
+fn merge_facts(f1: &Fact<MkVal>, f2: &Fact<MkVal>, combined_cst_binding_map: &mut CombinedCstBindingMap) -> Fact<MkVal> {
+    let merged_entity_ids = match (&f1.pattern.entity_id, &f2.pattern.entity_id) {
+        (EntityPatternValue::Binding(b1), EntityPatternValue::Binding(b2)) => EntityPatternValue::Binding(combined_cst_binding_map.get_new_var_name(b1, b2)),
+        // Assume both entity ids are the same
+        (EntityPatternValue::EntityId(e1), EntityPatternValue::EntityId(e2)) => EntityPatternValue::EntityId(e1.clone()),
+        _ => panic!("Cannot merge entity id with binding"),
+    };
+    let merged_value = merge_pattern_items_for_csts(&f1.pattern.value, &f2.pattern.value, combined_cst_binding_map);
+
+    f1.with_pattern(MkVal {
+        entity_id: merged_entity_ids,
+        var_name: f1.pattern.var_name.clone(),
+        value: merged_value,
+        assumption: f1.pattern.assumption,
+    })
+}
+
+fn merge_pattern_items_for_csts(v1: &PatternItem, v2: &PatternItem, combined_cst_binding_map: &mut CombinedCstBindingMap) -> PatternItem {
+    match (v1, v2) {
+        (PatternItem::Any, PatternItem::Any) => PatternItem::Any,
+        (PatternItem::Binding(b1), PatternItem::Binding(b2)) => {
+            let new_binding = combined_cst_binding_map.get_new_var_name(b1, b2);
+            PatternItem::Binding(new_binding)
+        },
+        (PatternItem::Value(v1), PatternItem::Value(v2)) => {
+            // We assume the values are always the same
+            PatternItem::Value(v1.clone())
+        },
+        (PatternItem::Vec(v1), PatternItem::Vec(v2)) => PatternItem::Vec(v1.iter().zip(v2).map(|(v1, v2)| merge_pattern_items_for_csts(v1, v2, combined_cst_binding_map)).collect()),
+        _ => panic!("Different patterns found, cannot merge")
+    }
+}
+
+// Binding map that maps a pair of bindings (from two csts) into a single binding
+struct CombinedCstBindingMap {
+    map: HashMap<(String, String), String>,
+    prefixed_var_counter: HashMap<String, usize>,
+}
+
+impl CombinedCstBindingMap {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            prefixed_var_counter: HashMap::new(),
+        }
+    }
+
+    pub fn add_new_var(&mut self, v1: &str, v2: &str) -> String {
+        let var_name = match v1 {
+            // Special cases
+            "PE" | "CMD_E" => v1.to_string(),
+            _ => {
+                // Always prefer prefix of v1
+                let prefix = get_var_prefix(v1);
+                let var_index = self.prefixed_var_counter.entry(prefix.clone()).or_insert(0);
+                let var_name = format!("{prefix}{var_index}");
+                *var_index += 1;
+                var_name
+            }
+        };
+
+
+        let (mv1, mv2) = order_vars(v1, v2);
+        self.map.insert((mv1.to_string(), mv2.to_string()), var_name.to_string());
+        var_name
+    }
+
+    pub fn get_new_var_name(&mut self, v1: &str, v2: &str) -> String {
+        let (mv1, mv2) = order_vars(v1, v2);
+        match self.map.get(&(mv1.to_string(), mv2.to_string())) {
+            Some(v) => v.clone(),
+            None => {
+                self.add_new_var(v1, v2)
+            }
+        }
+    }
+}
+
+fn order_vars<'a>(v1: &'a str, v2: &'a str) -> (&'a str, &'a str) {
+    if v1 < v2 {
+        (v1, v2)
+    }
+    else {
+        (v2, v1)
+    }
+}
+
+fn get_var_prefix(var: &str) -> String {
+    if var.starts_with("P") {
+        "P".to_string()
+    }
+    else if var.starts_with("CMD") {
+        "CMD".to_string()
+    }
+    else if var.starts_with("C") {
+        "C".to_string()
+    }
+    else {
+        "v".to_string()
     }
 }

@@ -1,16 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::string::ToString;
 use crate::runtime::pattern_matching::{compare_imdls, state_matches_facts};
-use crate::types::models::{IMdl, MdlLeftValue, MdlRightValue};
+use crate::types::models::{BoundModel, IMdl, MdlLeftValue, MdlRightValue};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
-use crate::types::{EntityVariableKey, Fact, MkVal, TimePatternRange};
+use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
 use crate::runtime::utils::all_req_models;
 use crate::types::cst::BoundCst;
+use crate::types::pattern::PatternItem;
 use crate::types::value::Value;
+use crate::visualize::visualize_forward_chaining;
 
-const MAX_FWD_CHAIN_DEPTH: u64 = 2;
+const MAX_FWD_CHAIN_DEPTH: u64 = 5;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -96,41 +99,10 @@ fn forward_chain_rec(
     // Get all casual models that can be instantiated with forward chaining
     let fwd_chained_casual_models = compute_instantiate_casual_models(state, system);
 
-    let mut insatiable_casual_models = Vec::new();
-    // Casual goal models with all bindings filled in form both forward and backward chaining
-    let mut final_casual_models = Vec::new();
-    for (fwd_chained_imdl, is_anti_fact) in &fwd_chained_casual_models {
-        if *is_anti_fact {
-            continue;
-        }
+    let (insatiable_casual_models, final_casual_models)
+        = compute_merged_forward_backward_models(&fwd_chained_casual_models, goal_requirements, system);
 
-        // Get backward chained casual models
-        for casual_model in goal_requirements
-            .iter()
-            .filter(|cm| compare_imdls(cm, &fwd_chained_imdl, true, true))
-        {
-            // Fill in bindings that we got from backward chaining but not forward chaining
-            let merged_imdl = fwd_chained_imdl.clone().merge_with(casual_model.clone());
-            let mut fwd_chained_model = merged_imdl
-                .instantiate(&HashMap::new(), system);
-
-            // There might be a better way to do this,
-            // but currently this is the first time that all backward guards can be computed,
-            // since some of them need bindings that we get from forward chaining
-            fwd_chained_model.compute_backward_bindings();
-            fwd_chained_model.compute_forward_bindings();
-
-            log::debug!("Added final casual model {}", fwd_chained_model.imdl_for_model());
-
-            final_casual_models.push(fwd_chained_model);
-        }
-
-        // Create a list of all instantiable casual models
-        let casual_model = fwd_chained_imdl.instantiate(&HashMap::new(), system);
-        insatiable_casual_models.push(casual_model);
-    }
-
-    for casual_model in &final_casual_models {
+    for casual_model in final_casual_models.iter().sorted_by_key(|m| -(m.model.confidence * 100.0) as i32) {
         if let Some(command) = casual_model
             .get_casual_model_command(&insatiable_casual_models, &system)
             .map(|c| c.to_runtime_command(&casual_model.bindings).ok())
@@ -203,7 +175,43 @@ fn forward_chain_rec(
     (results, is_in_goal_path, node_min_goal_depth)
 }
 
-fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Vec<(IMdl, bool)> {
+pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: &Vec<(IMdl, bool)>, goal_requirements: &Vec<IMdl>, system: &System) -> (Vec<BoundModel>, Vec<BoundModel>) {
+    let mut insatiable_casual_models = Vec::new();
+    // Casual goal models with all bindings filled in form both forward and backward chaining
+    let mut final_casual_models = Vec::new();
+    for (fwd_chained_imdl, is_anti_fact) in fwd_chained_casual_models {
+        if *is_anti_fact {
+            continue;
+        }
+
+        // Get backward chained casual models
+        for casual_model in goal_requirements
+            .iter()
+            .filter(|cm| compare_imdls(cm, &fwd_chained_imdl, true, true))
+        {
+            // Fill in bindings that we got from backward chaining but not forward chaining
+            let merged_imdl = fwd_chained_imdl.clone().merge_with(casual_model.clone());
+            let mut fwd_chained_model = merged_imdl
+                .instantiate(&HashMap::new(), system);
+
+            // There might be a better way to do this,
+            // but currently this is the first time that all backward guards can be computed,
+            // since some of them need bindings that we get from forward chaining
+            fwd_chained_model.compute_backward_bindings();
+            fwd_chained_model.compute_forward_bindings();
+
+            final_casual_models.push(fwd_chained_model);
+        }
+
+        // Create a list of all instantiable casual models
+        let casual_model = fwd_chained_imdl.instantiate(&HashMap::new(), system);
+        insatiable_casual_models.push(casual_model);
+    }
+
+    (insatiable_casual_models, final_casual_models)
+}
+
+pub(super) fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Vec<(IMdl, bool)> {
     let instantiated_composite_states = state.instansiated_csts
         .iter()
         .flat_map(|(_, csts)| csts.iter().map(BoundCst::icst_for_cst))
@@ -215,7 +223,9 @@ fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Ve
             let bm = m.as_bound_model();
             instantiated_composite_states
                 .iter()
-                .filter_map(|icst| bm.deduce(&Fact::new(MdlLeftValue::ICst(icst.clone()), TimePatternRange::wildcard()), &Vec::new()))
+                .filter_map(|icst| {
+                    bm.deduce(&Fact::new(MdlLeftValue::ICst(icst.clone()), TimePatternRange::wildcard()), &Vec::new())
+                })
                 .collect_vec()
         })
         .map(|rhs| match rhs.pattern {

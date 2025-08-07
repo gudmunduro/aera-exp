@@ -18,7 +18,7 @@ impl Hash for ValueKey {
 
 pub struct EntityVarChange {
     pub entity: EntityVariableKey,
-    pub before: Value,
+    pub before: Option<Value>,
     pub after: Value
 }
 
@@ -37,7 +37,11 @@ pub fn change_intersects_entity_var(change: &EntityVarChange, entity_var: (&Enti
 // Extract all the relevant values from the change, which can then be used to check if specific facts and CSTS are relevant
 fn extract_values_from_change(change: &EntityVarChange) -> HashSet<Value> {
     let entity_id = change.entity.entity_id.clone();
-    let before_values = extract_values_from_value(&change.before);
+    let before_values = if let Some(before) = &change.before {
+        extract_values_from_value(before)
+    } else {
+        HashSet::new()
+    };
     let after_values = extract_values_from_value(&change.after);
     let mut res: HashSet<Value> = before_values.union(&after_values).cloned().collect();
     res.insert(Value::EntityId(entity_id));

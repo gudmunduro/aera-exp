@@ -104,29 +104,29 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 Function::Add(
                     Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
                     Box::new(Function::Value(PatternItem::Binding("dpx".to_string()))),
+                    ),
                 ),
-            ),
                 ("npy".to_string(),
-                 Function::Add(
-                     Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
-                     Box::new(Function::Value(PatternItem::Binding("dpy".to_string()))),
-                 ),
+                Function::Add(
+                    Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("dpy".to_string()))),
+                ),
                 ),
             ]
                 .into(),
             backward_computed: [(
-                "dpx".to_string(),
-                Function::Sub(
-                    Box::new(Function::Value(PatternItem::Binding("npx".to_string()))),
-                    Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
-                ),
-            ),
-                (
-                    "dpy".to_string(),
+                    "dpx".to_string(),
                     Function::Sub(
-                        Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
-                        Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("npx".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
                     ),
+                ),
+                (
+                "dpy".to_string(),
+                Function::Sub(
+                    Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
+                    Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
+                ),
                 ),
             ].into(),
             confidence: 1.0,
@@ -256,7 +256,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     MkVal {
                         entity_id: EntityPatternValue::Binding("co".to_string()),
                         var_name: "approximate_pos".to_string(),
-                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
+                        value: PatternItem::Binding("p".to_string()),
                         assumption: false,
                     },
                     TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -279,10 +279,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
+                        PatternItem::Binding("p".to_string()),
                     ],
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -341,10 +338,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     params: vec![
                         PatternItem::Binding("co".to_string()),
                         PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
+                        PatternItem::Binding("p".to_string()),
                     ],
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -354,13 +348,9 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     "M_move_cube".to_string(),
                     vec![
                         PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("dpx".to_string()),
-                        PatternItem::Binding("dpy".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
+                        PatternItem::Binding("dp".to_string()),
+                        PatternItem::Binding("p".to_string()),
                         PatternItem::Binding("co".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
                     ],
                 )),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
@@ -379,12 +369,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 MdlLeftValue::Command(Command {
                     name: "move".to_string(),
                     entity_id: EntityPatternValue::Binding("h".to_string()),
-                    params: vec![PatternItem::Vec(vec![
-                        PatternItem::Binding("dpx".to_string()),
-                        PatternItem::Binding("dpy".to_string()),
-                        PatternItem::Value(Value::Number(0.0)),
-                        PatternItem::Value(Value::Number(0.0)),
-                    ])],
+                    params: vec![PatternItem::Binding("dp".to_string())],
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             ),
@@ -392,222 +377,80 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 MdlRightValue::MkVal(MkVal {
                     entity_id: EntityPatternValue::Binding("co".to_string()),
                     var_name: "approximate_pos".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("npx".to_string()), PatternItem::Binding("npy".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
+                    value: PatternItem::Binding("np".to_string()),
                     assumption: false,
                 }),
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             ),
-            forward_computed: [(
-                "npx".to_string(),
-                Function::Add(
-                    Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
-                    Box::new(Function::Value(PatternItem::Binding("dpx".to_string()))),
-                ),
-            ),
-                ("npy".to_string(),
-                 Function::Add(
-                     Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
-                     Box::new(Function::Value(PatternItem::Binding("dpy".to_string()))),
-                 ),
-                ),
-            ]
-                .into(),
-            backward_computed: [(
-                "dpx".to_string(),
-                Function::Sub(
-                    Box::new(Function::Value(PatternItem::Binding("npx".to_string()))),
-                    Box::new(Function::Value(PatternItem::Binding("px".to_string()))),
-                ),
-            ),
+            forward_computed: [
                 (
-                    "dpy".to_string(),
+                    "np".to_string(),
+                    Function::Add(
+                        Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("dp".to_string()))),
+                    )
+                ),
+            ].into(),
+            backward_computed: [
+                (
+                    "dp".to_string(),
                     Function::Sub(
-                        Box::new(Function::Value(PatternItem::Binding("npy".to_string()))),
-                        Box::new(Function::Value(PatternItem::Binding("py".to_string()))),
-                    ),
+                        Box::new(Function::Value(PatternItem::Binding("np".to_string()))),
+                        Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
+                    )
                 ),
             ].into(),
             confidence: 1.0,
         },
     );
 
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
+    let loaded_models: HashMap<String, Mdl> = serde_json::from_str(&std::fs::read_to_string("models.json").unwrap()).unwrap();
+    let loaded_csts: HashMap<String, Cst> = serde_json::from_str(&std::fs::read_to_string("csts.json").unwrap()).unwrap();
 
-    // Babble commands for basic demo (that doesn't use tcp)
-    /*system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
+    for (mdl_id, model) in loaded_models {
+        if !system.models.contains_key(&mdl_id) {
+            system.models.insert(mdl_id, model);
+        }
+    }
+    for (cst_id, cst) in loaded_csts {
+        if !system.csts.contains_key(&cst_id) {
+            system.csts.insert(cst_id, cst);
+        }
+    }
 
-    system.goals = vec![
-        vec![
-            Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("h".to_string()),
-                var_name: "holding".to_string(),
-                value: PatternItem::Vec(vec![PatternItem::Binding("co1".to_string())]),
-                assumption: false,
-            }, TimePatternRange::wildcard())
-        ]
-    ];*/
-
-    // Simpler demo
-    /*
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });*/
-
-
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co1".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(0.0),
-                Value::Number(-80.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(60.0),
-                Value::Number(50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co2".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(-60.0),
-                Value::Number(-50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(-40.0),
-                Value::Number(50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
+    fn insert_sift_features(active_features: &[usize], entity: &str, system: &mut System) {
+        for i in active_features {
+            system.current_state.variables.insert(EntityVariableKey::new(entity, &format!("sift{i}")), Value::ConstantNumber(1.0));
+        }
+    }
+    system.current_state.variables.insert(EntityVariableKey::new("h", "position"), Value::Vec(vec![
+        Value::UncertainNumber(199.99652099507048, 0.1),
+        Value::UncertainNumber(-0.0006397704178381421, 0.1),
+        Value::UncertainNumber(-0.002315858844667673, 0.1),
+        Value::UncertainNumber(179.986083984375, 0.1)
+    ]));
+    system.current_state.variables.insert(EntityVariableKey::new("co1", "approximate_pos"), Value::Vec(vec![
+        Value::UncertainNumber(221.99652099507048, 5.0),
+        Value::UncertainNumber(21.275955974263013, 5.0),
+        Value::UncertainNumber(-100.0, 5.0),
+        Value::UncertainNumber(180.0, 5.0)
+    ]));
+    system.current_state.variables.insert(EntityVariableKey::new("h", "holding"), Value::Vec(vec![]));
+    system.current_state.variables.insert(EntityVariableKey::new("co2", "approximate_pos"), Value::Vec(vec![
+        Value::UncertainNumber(297.99652099507045, 5.0),
+        Value::UncertainNumber(-14.468724876800815, 5.0),
+        Value::UncertainNumber(-100.0, 5.0),
+        Value::UncertainNumber(180.0, 5.0)
+    ]));
+    system.current_state.variables.insert(EntityVariableKey::new("co3", "approximate_pos"), Value::Vec(vec![
+        Value::UncertainNumber(223.99652099507048, 5.0),
+        Value::UncertainNumber(-54.46872487680082, 5.0),
+        Value::UncertainNumber(-100.0, 5.0),
+        Value::UncertainNumber(180.0, 5.0)
+    ]));
+    insert_sift_features(&[4, 5, 6, 7, 23], "co3", system);
+    insert_sift_features(&[4, 24], "co1", system);
+    insert_sift_features(&[1, 2, 3], "co2", system);
 
 
     system.goals = vec![
@@ -623,8 +466,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         ],*/
         vec![
             Fact::new(MkVal {
-                entity_id: EntityPatternValue::Binding("co_o".to_string()),
-                // entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                //entity_id: EntityPatternValue::Binding("co_o".to_string()),
+                entity_id: EntityPatternValue::EntityId("co1".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
                     Value::UncertainNumber(228.00441002220657, 10.0),

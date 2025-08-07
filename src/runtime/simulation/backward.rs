@@ -1,18 +1,43 @@
-use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern};
+use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern, extract_duplicate_bindings_from_pattern_and_values};
 use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models};
 use crate::types::cst::Cst;
-use crate::types::models::{AbductionResult, IMdl, Mdl, MdlRightValue};
+use crate::types::models::{AbductionResult, IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
 use crate::types::value::Value;
-use crate::types::{EntityDeclaration, Fact, MkVal, TimePatternRange};
-use itertools::{all, Itertools};
+use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, TimePatternRange};
+use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
-const MAX_DEPTH: usize = 5;
+const MAX_DEPTH: usize = 7;
 
 pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let mut instantiable_cas_mdl = Vec::new();
+
+    let includes_unbound = goal
+        .iter()
+        .any(|g| g.pattern.entity_id.get_id_with_bindings(&HashMap::new()).is_none() ||g.pattern.value.get_value_with_bindings(&HashMap::new()).is_none());
+    let goal_variations = if false {
+        let entities = goal
+            .iter()
+            .filter_map(|g| {
+                let EntityPatternValue::Binding(entity_binding) = &g.pattern.entity_id else {
+                    return None;
+                };
+                let entity_for_variable = data.current_state.variables
+                    .iter()
+                    .find(|(k, v)| k.var_name == g.pattern.var_name)
+                    .map(|(k, _)| k.entity_id.clone())?;
+                let entity_class = data.find_class_of_entity(&entity_for_variable)?;
+
+                Some(EntityDeclaration::new(&entity_binding, &entity_class))
+            })
+            .collect_vec();
+        create_variations_of_sub_goal(goal, Some(&entities), data)
+    }
+    else {
+      vec![goal.clone()]
+    };
 
     let req_models = all_req_models(data);
     for m_req in &req_models {
@@ -26,16 +51,20 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let mut state_prediction_models = all_assumption_models(data);
     state_prediction_models.extend(all_state_prediction_models(data));
     let mut observed_goals = Vec::new();
-    let (goal_req_models, _) = get_goal_requirements_for_goal(
-        goal,
-        &instantiable_cas_mdl,
-        &casual_models,
-        &state_prediction_models,
-        data,
-        &mut observed_goals,
-        0,
-    );
-    goal_req_models
+    let mut goal_req_model_results = Vec::new();
+    for goal in goal_variations {
+        let (goal_req_models, _) = get_goal_requirements_for_goal(
+            &goal,
+            &instantiable_cas_mdl,
+            &casual_models,
+            &state_prediction_models,
+            data,
+            &mut observed_goals,
+            0,
+        );
+        goal_req_model_results.extend(goal_req_models);
+    }
+    goal_req_model_results
         .into_iter()
         .unique()
         .collect()
@@ -48,7 +77,7 @@ fn get_goal_requirements_for_goal(
     casual_models: &Vec<Mdl>,
     assumption_models: &Vec<Mdl>,
     data: &System,
-    observed_goals: &mut Vec<Vec<Fact<MkVal>>>,
+    observed_goals: &mut Vec<(Vec<Fact<MkVal>>, usize)>,
     depth: usize,
 ) -> (Vec<IMdl>, bool) {
     if depth >= MAX_DEPTH {
@@ -77,7 +106,7 @@ fn get_goal_requirements_for_goal(
             AbductionResult::SubGoal(_, _, imdl) | AbductionResult::IMdl(imdl) => imdl
         };
 
-        // If the casual model can be reached directly from the current state, then we don't have to look further back
+        // If the causal model can be reached directly from the current state, then we don't have to look further back
         if instantiable_cas_mdl.iter().any(|imdl_val| {
             compare_imdls(imdl_val, &goal_model_imdl, true, true)
         }) {
@@ -113,15 +142,15 @@ fn get_goal_requirements_for_goal(
 
         let sub_goals = match abduction_result {
             AbductionResult::SubGoal(sub_goal, cst_id, _) => {
-                vec![(sub_goal, cst_id)]
+                vec![(sub_goal, cst_id, goal_model_bm.model.clone())]
             }
             AbductionResult::IMdl(imdl) => {
                 let imdl_fact = Fact::new(MdlRightValue::IMdl(imdl.clone()), TimePatternRange::wildcard());
                 all_req_models(data)
                     .into_iter()
-                    .filter_map(|m| m.as_bound_model().abduce(&imdl_fact, data))
-                    .map(|res| match res {
-                        AbductionResult::SubGoal(sub_goal, cst_id, _) => (sub_goal, cst_id),
+                    .filter_map(|m| Some((m.as_bound_model().abduce(&imdl_fact, data)?, m)))
+                    .map(|(res, m)| match res {
+                        AbductionResult::SubGoal(sub_goal, cst_id, _) => (sub_goal, cst_id, m),
                         AbductionResult::IMdl(imdl) => {
                             panic!("Model chain is too long, got {imdl} when expecting subgoal (icst or mk.val) lhs");
                         }
@@ -131,24 +160,20 @@ fn get_goal_requirements_for_goal(
         };
 
         // Create sub goals from the requirement models
-        for (sub_goal, sub_goal_cst_id) in sub_goals {
+        for (sub_goal, sub_goal_cst_id, req_model) in sub_goals {
             let sub_goal_entities = sub_goal_cst_id
                 .map(|cst_id| &data.csts.get(&cst_id).unwrap().entities);
 
-            let sub_goal_relevant_bindings = match &goal_model_bm.model.right.pattern {
-                MdlRightValue::IMdl(imdl) => extract_bindings_from_pattern(&imdl.params),
-                MdlRightValue::MkVal(mk_val) => extract_bindings_from_pattern(&mk_val.value.pattern())
-            };
-
-            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, &sub_goal_relevant_bindings, data);
+            let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, data);
             all_sub_goals.insert(0, sub_goal);
 
             for sub_goal in &all_sub_goals {
                 // Don't check goals that have been seen before, to prevent an infinite loop
-                if observed_goals.iter().any(|g| are_goals_equal(g, sub_goal)) {
+                // Re-check the observed goal if it was observed at a higher depth, since we may have reached the depth limit too early
+                if observed_goals.iter().any(|(g, d)| are_goals_equal(g, sub_goal) && *d <= depth) {
                     continue;
                 }
-                observed_goals.push(sub_goal.clone());
+                observed_goals.push((sub_goal.clone(), depth));
 
                 let (sub_goal_req_models, sub_goal_reached_current_state) =
                     get_goal_requirements_for_goal(
@@ -176,10 +201,9 @@ fn get_goal_requirements_for_goal(
 /// Create variations of the subgoal with possible binding assignments
 /// E.g. if the goal is for a hand and obj to both be at pos p, then two subgoals will be made,
 /// one with p as the current pos of the hand and another with p as the current pos of the obj
-fn create_variations_of_sub_goal(
+pub(super) fn create_variations_of_sub_goal(
     goal: &Vec<Fact<MkVal>>,
     sub_goal_entities: Option<&Vec<EntityDeclaration>>,
-    relevant_bindings: &HashSet<String>,
     system: &System,
 ) -> Vec<Vec<Fact<MkVal>>> {
     let goal_cst = Cst {
@@ -206,41 +230,40 @@ fn create_variations_of_sub_goal(
     possible_entity_binding
         .iter()
         .flat_map(|entity_bindings| {
-            bindings
+            goal
                 .iter()
-                .filter(|b| !entity_bindings.contains_key(&**b) && relevant_bindings.iter().contains(b))
-                // Get all possible values for each binding and create a 2d list from them, e.g. [ [("a", 2.0), ("a", 5.0)], [("b", 7.0)] ]
-                .map(|b| {
-                    let res = goal
-                        .iter()
-                        .filter(|f| f.pattern.value.contains_binding(b))
-                        .flat_map(|f| {
-                            // TODO: Was needed to support entity bindings of assumptions, check if subgoal variations are properly created in that case
-                            let Some(key) = f.pattern.entity_key(&entity_bindings) else {
-                                return Vec::new();
-                            };
-                            let Some(sys_value) = system
-                                .current_state
-                                .variables
-                                .get(&key) else {
-                                return Vec::new();
-                            };
-
-                            extract_duplicate_bindings_from_pattern(&f.pattern.value.pattern(), &vec![PatternItem::Value(sys_value.clone())])
-                        })
-                        .collect_vec();
-                    res
-                })
-                // Make all possible combinations of binding values
-                .multi_cartesian_product()
-                // Combine value bindings with entity bindings and create facts containing them for the goal
-                .map(|bindings| {
-                    let mut bindings: HashMap<String, Value> = bindings.into_iter().collect();
-                    // Insert the entity bindings into the map as well
-                    bindings.extend(entity_bindings.clone().into_iter().collect_vec());
-
-                    goal_cst.fill_in_bindings(&bindings).facts
-                })
+                .permutations(goal.len())
+                .map(|facts| create_binding_variation_for_fact_order(&facts, entity_bindings, system))
+                .unique()
+        })
+        .unique()
+        .map(|bindings| {
+            let binding_map = bindings.into_iter().collect();
+            goal_cst.fill_in_bindings(&binding_map).facts
         })
         .collect()
+}
+
+// Given the chosen order of facts, select binding values by filling in the bindings of each fact one by one until all bindings have a value
+fn create_binding_variation_for_fact_order(facts: &Vec<&Fact<MkVal>>, entity_bindings: &HashMap<String, Value>, system: &System) -> Vec<(String, Value)> {
+    let mut binding_map = entity_bindings.clone();
+    for f in facts {
+        let Some(key) = f.pattern.entity_key(&entity_bindings) else {
+            continue;
+        };
+        let Some(sys_value) = system
+            .current_state
+            .variables
+            .get(&key) else {
+            continue;
+        };
+        // Extract and insert all bindings that are not already in the binding map
+        for (b, v) in extract_duplicate_bindings_from_pattern_and_values(&f.pattern.value.pattern(), &vec![sys_value.clone()]) {
+            if !binding_map.contains_key(&b) {
+                binding_map.insert(b, v);
+            }
+        }
+    }
+
+    binding_map.into_iter().collect()
 }

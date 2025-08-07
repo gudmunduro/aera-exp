@@ -8,7 +8,7 @@ use crate::types::pattern::PatternItem;
 use crate::types::runtime::{RuntimeCommand, System};
 use crate::types::value::Value;
 
-pub fn setup_robot_sift_learn_seed(system: &mut System) {
+pub fn setup_scenario_2(system: &mut System) {
     system.create_entity("h", "hand");
     system.create_entity("c", "camera");
     system.create_entity("co1", "cam_obj");
@@ -133,110 +133,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         },
     );
 
-    // Grab cube
-
-    system.csts.insert(
-        "S1".to_string(),
-        Cst {
-            cst_id: "S1".to_string(),
-            facts: vec![
-                Fact::new(
-                    MkVal {
-                        entity_id: EntityPatternValue::Binding("co".to_string()),
-                        var_name: "approximate_pos".to_string(),
-                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Binding("pz".to_string()), PatternItem::Binding("pw".to_string())]),
-                        assumption: false,
-                    },
-                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                ),
-                Fact::new(
-                    MkVal {
-                        entity_id: EntityPatternValue::EntityId("h".to_string()),
-                        var_name: "holding".to_string(),
-                        value: PatternItem::Vec(vec![]),
-                        assumption: false,
-                    },
-                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                ),
-                Fact::new(
-                    MkVal {
-                        entity_id: EntityPatternValue::EntityId("h".to_string()),
-                        var_name: "position".to_string(),
-                        value: PatternItem::Vec(vec![PatternItem::Binding("px".to_string()), PatternItem::Binding("py".to_string()), PatternItem::Value(Value::Number(0.0)), PatternItem::Binding("pw".to_string())]),
-                        assumption: false,
-                    },
-                    TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-                ),
-            ],
-            entities: vec![
-                EntityDeclaration::new("h", "hand"),
-                EntityDeclaration::new("co", "cam_obj"),
-            ],
-        },
-    );
-
-    system.models.insert(
-        "M_grab_req".to_string(),
-        Mdl {
-            model_id: "M_grab_req".to_string(),
-            left: Fact::new(
-                MdlLeftValue::ICst(ICst {
-                    cst_id: "S1".to_string(),
-                    params: vec![
-                        PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("co".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
-                    ],
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            right: Fact::new(
-                MdlRightValue::IMdl(IMdl::new(
-                    "M_grab".to_string(),
-                    vec![
-                        PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("co".to_string()),
-                    ],
-                )),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            forward_computed: Default::default(),
-            backward_computed: Default::default(),
-            confidence: 1.0,
-        },
-    );
-
-    system.models.insert(
-        "M_grab".to_string(),
-        Mdl {
-            model_id: "M_grab".to_string(),
-            left: Fact::new(
-                MdlLeftValue::Command(Command {
-                    name: "grab".to_string(),
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    params: vec![],
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            right: Fact::new(
-                MdlRightValue::MkVal(MkVal {
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Vec(vec![PatternItem::Binding("co".to_string())]),
-                    assumption: false,
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            forward_computed: [].into(),
-            backward_computed: [].into(),
-            confidence: 1.0,
-        },
-    );
-
-    // Release cube
+    // Move while holding the cube moves the cube
 
     system.csts.insert(
         "S_holding".to_string(),
@@ -268,68 +165,6 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ],
         },
     );
-
-    system.models.insert(
-        "M_release_req".to_string(),
-        Mdl {
-            model_id: "M_release_req".to_string(),
-            left: Fact::new(
-                MdlLeftValue::ICst(ICst {
-                    cst_id: "S_holding".to_string(),
-                    params: vec![
-                        PatternItem::Binding("co".to_string()),
-                        PatternItem::Binding("h".to_string()),
-                        PatternItem::Binding("px".to_string()),
-                        PatternItem::Binding("py".to_string()),
-                        PatternItem::Binding("pz".to_string()),
-                        PatternItem::Binding("pw".to_string()),
-                    ],
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            right: Fact::new(
-                MdlRightValue::IMdl(IMdl::new(
-                    "M_release".to_string(),
-                    vec![
-                        PatternItem::Binding("h".to_string()),
-                    ],
-                )),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            forward_computed: Default::default(),
-            backward_computed: Default::default(),
-            confidence: 1.0,
-        },
-    );
-
-    system.models.insert(
-        "M_release".to_string(),
-        Mdl {
-            model_id: "M_release".to_string(),
-            left: Fact::new(
-                MdlLeftValue::Command(Command {
-                    name: "release".to_string(),
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    params: vec![],
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            right: Fact::new(
-                MdlRightValue::MkVal(MkVal {
-                    entity_id: EntityPatternValue::Binding("h".to_string()),
-                    var_name: "holding".to_string(),
-                    value: PatternItem::Value(Value::Vec(vec![])),
-                    assumption: false,
-                }),
-                TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
-            ),
-            forward_computed: [].into(),
-            backward_computed: [].into(),
-            confidence: 1.0,
-        },
-    );
-
-    // Move while holding the cube moves the cube
 
     system.models.insert(
         "M_move_cube_req".to_string(),
@@ -431,121 +266,55 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         },
     );
 
-    /*system.babble_command.push(RuntimeCommand {
+    // Expected to be at 240, 0, 0, 180 before doing babble commands
+
+    // Move to and push the blue cube
+    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(40.0),
+                Value::Number(20.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
-    });*/
-
-    // Babble commands for basic demo (that doesn't use tcp)
-    /*system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
     });
+    // Doing push here pushes the blue cube (co1) forward
     system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
+        name: "push".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
 
-    system.goals = vec![
-        vec![
-            Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("h".to_string()),
-                var_name: "holding".to_string(),
-                value: PatternItem::Vec(vec![PatternItem::Binding("co1".to_string())]),
-                assumption: false,
-            }, TimePatternRange::wildcard())
-        ]
-    ];*/
-
-    // Simpler demo
-    /*
+    // Move to and push the red cube
     system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
+                Value::Number(0.0),
+                Value::Number(80.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
     });
     system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
+        name: "push".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });*/
 
 
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co1".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
+    // Pick up and move the blue cube
     system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(0.0),
+                Value::Number(50.0),
                 Value::Number(-80.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
@@ -553,26 +322,41 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         ],
     });
     system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
+        name: "grab".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
-    /*system.babble_command.push(RuntimeCommand {
+    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(60.0),
-                Value::Number(50.0),
+                Value::Number(-20.0),
+                Value::Number(0.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
-    });*/
+    });
     system.babble_command.push(RuntimeCommand {
-        name: "move_co2".to_string(),
+        name: "release".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
+    });
+
+
+    // Pick up and move the red cube
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(20.0),
+                Value::Number(80.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
     });
     system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
@@ -584,8 +368,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(-60.0),
-                Value::Number(-50.0),
+                Value::Number(-20.0),
+                Value::Number(0.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -596,55 +380,36 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![],
     });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(-40.0),
-                Value::Number(50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-
 
     system.goals = vec![
-        /*vec![
-            Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("h".to_string()),
-                var_name: "holding".to_string(),
-                value: PatternItem::Value(Value::Vec(vec![
-                    Value::EntityId("co1".to_string())
-                ])),
-                assumption: false,
-            }, TimePatternRange::wildcard()),
-        ],*/
         vec![
+            //
+            // Here it should push the green cube (as that is faster to move it only by ~20)
             Fact::new(MkVal {
-                entity_id: EntityPatternValue::Binding("co_o".to_string()),
-                // entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                entity_id: EntityPatternValue::EntityId("co3".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
-                    Value::UncertainNumber(228.00441002220657, 10.0),
-                    Value::UncertainNumber(-49.99883096646674, 10.0),
+                    Value::UncertainNumber(240.0, 10.0),
+                    Value::UncertainNumber(-70.0, 10.0),
                     Value::UncertainNumber(-100.0, 10.0),
                     Value::UncertainNumber(180.0, 10.0)
                 ])),
                 assumption: false,
             }, TimePatternRange::wildcard()),
-            /*Fact::new(MkVal {
-                entity_id: EntityPatternValue::Binding("co_o".to_string()),
+        ],
+        vec![
+            // However here we want to move it by so much that it should now pick it up to move it
+            Fact::new(MkVal {
+                entity_id: EntityPatternValue::EntityId("co3".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
-                    Value::UncertainNumber(228.00441002220657, 10.0),
-                    Value::UncertainNumber(-49.99883096646674, 10.0),
+                    Value::UncertainNumber(180.0, 10.0),
+                    Value::UncertainNumber(0.0, 10.0),
                     Value::UncertainNumber(-100.0, 10.0),
                     Value::UncertainNumber(180.0, 10.0)
                 ])),
                 assumption: false,
-            }, TimePatternRange::wildcard()),*/
-        ],
+            }, TimePatternRange::wildcard()),
+        ]
     ];
 }

@@ -19,8 +19,10 @@ use crate::types::runtime::{System, SystemTime};
 
 pub fn run_demo() {
     run_aera(
-        seeds::setup_bindings_seed,
-        |_system| {},
+        seeds::robot_sift_learn_2::setup_robot_sift_learn_seed,
+        |_system| {
+            exit(0);
+        },
         |cmd, _system| {
             log::debug!("Command to execute next {cmd}");
             exit(0);
@@ -151,7 +153,7 @@ pub fn run_with_tcp() {
     let tcp_send_interface = tcp_receive_interface.clone();
 
     run_aera(
-        seeds::robot_sift_learn::setup_robot_sift_learn_seed,
+        seeds::scenario_2::setup_scenario_2,
         |system| {
             let tcp_variables = tcp_receive_interface.lock().unwrap().update_variables();
             system.current_state.variables = tcp_variables;

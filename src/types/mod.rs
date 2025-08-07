@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use crate::runtime::pattern_matching::{bind_values_to_pattern, compare_pattern_items, compare_patterns, extract_bindings_from_patterns, fill_in_pattern_with_bindings, PatternMatchResult};
 use crate::types::pattern::{bindings_in_pattern, Pattern, PatternItem};
 use crate::types::runtime::RuntimeCommand;
@@ -17,7 +18,7 @@ pub mod value;
 // Time is stored in milliseconds
 type Time = u64;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Command {
     pub name: String,
     pub entity_id: EntityPatternValue,
@@ -25,6 +26,14 @@ pub struct Command {
 }
 
 impl Command {
+    pub fn new_values(name: &str, entity_id: &str, params: &Vec<Value>) -> Command {
+        Command {
+            name: name.to_string(),
+            entity_id: EntityPatternValue::EntityId(entity_id.to_string()),
+            params: params.iter().map(|v| PatternItem::Value(v.clone())).collect(),
+        }
+    }
+
     pub fn to_runtime_command(&self, bindings: &HashMap<String, Value>) -> anyhow::Result<RuntimeCommand> {
         let params = bind_values_to_pattern(&self.params, bindings);
 
@@ -78,7 +87,7 @@ pub trait MatchesFact<T: Clone> {
     fn matches_fact(&self, fact: &Fact<T>) -> bool;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Fact<T: Clone> {
     pub pattern: T,
     pub time_range: TimePatternRange,
@@ -128,7 +137,7 @@ impl<T> Display for Fact<T> where T: Clone + Display {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MkVal {
     pub entity_id: EntityPatternValue,
     pub var_name: String,
@@ -202,7 +211,7 @@ impl Display for MkVal {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TimePatternRange {
     pub from: TimePatternValue,
     pub to: TimePatternValue,
@@ -218,7 +227,7 @@ impl TimePatternRange {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TimePatternValue {
     Time(Time),
     Any,
@@ -243,7 +252,7 @@ pub struct Goal {
     time_range: TimePatternRange,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum EntityPatternValue {
     Binding(String),
     EntityId(String),
@@ -266,6 +275,10 @@ impl EntityPatternValue {
         matches!(self, EntityPatternValue::Binding(b) if b == binding)
     }
 
+    pub fn is_entity_id(&self, entity_id: &str) -> bool {
+        matches!(self, EntityPatternValue::EntityId(e) if e == entity_id)
+    }
+
     pub fn insert_binding_value(&mut self, bindings: &HashMap<String, Value>) {
         match self {
             EntityPatternValue::Binding(b) => {
@@ -273,7 +286,8 @@ impl EntityPatternValue {
                     *self = EntityPatternValue::EntityId(id.to_owned());
                 }
                 else {
-                    log::error!("Binding missing when trying to fill in entity binding")
+                    // TODO: Uncomment, possible turn into a warning
+                    //log::error!("Binding missing when trying to fill in entity binding")
                 }
             }
             EntityPatternValue::EntityId(_) => {}
@@ -297,7 +311,7 @@ impl Display for EntityPatternValue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EntityDeclaration {
     pub binding: String,
     pub class: String,

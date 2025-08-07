@@ -34,6 +34,8 @@ dependencies = [
  "piston_window",
  "prost",
  "prost-build",
+ "serde",
+ "serde_json",
  "simple-log",
  "tap",
 ]

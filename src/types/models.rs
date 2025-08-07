@@ -12,9 +12,10 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use tap::Tap;
+use serde::{Deserialize, Serialize};
 use crate::runtime::utils::{compute_assumptions, compute_instantiated_states, compute_state_predictions};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Mdl {
     pub model_id: String,
     pub left: Fact<MdlLeftValue>,
@@ -232,7 +233,7 @@ impl Display for Mdl {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MdlLeftValue {
     ICst(ICst),
     IMdl(IMdl),
@@ -324,7 +325,7 @@ impl Display for MdlLeftValue {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MdlRightValue {
     IMdl(IMdl),
     MkVal(MkVal),
@@ -402,7 +403,7 @@ pub enum AbductionResult {
     IMdl(IMdl),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct IMdl {
     pub model_id: String,
     pub params: Pattern,
@@ -456,6 +457,10 @@ impl IMdl {
         BoundModel { bindings, model }.tap_mut(|m| m.compute_forward_bindings())
     }
 
+    pub fn get_model<'a>(&self, system: &'a System) -> &'a Mdl {
+        system.models.get(&self.model_id).expect(&format!("Model in imdl does not exist {}", self.model_id))
+    }
+
     pub fn merge_with(mut self, imdl: IMdl) -> IMdl {
         self.params = combine_pattern_bindings(self.params, imdl.params);
         self.fwd_guard_bindings.extend(imdl.fwd_guard_bindings);
@@ -486,7 +491,6 @@ impl Eq for IMdl {
 impl Hash for IMdl {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.model_id.hash(state);
-        self.params.hash(state);
         self.fwd_guard_bindings.iter().collect_vec().hash(state);
     }
 }
@@ -496,10 +500,10 @@ impl Display for IMdl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "(imdl {} [{}])",
+            "(imdl {} [{}] | {})",
             self.model_id,
             self.params.iter().map(|p| p.to_string()).join(" "),
-            //self.fwd_guard_bindings.iter().map(|(b, v)| format!("{b}: {v}")).join(", ")
+            self.fwd_guard_bindings.iter().map(|(b, v)| format!("{b}: {v}")).join(", ")
         )?;
 
         Ok(())
@@ -643,13 +647,15 @@ impl BoundModel {
             .get_value_with_bindings(&self.bindings) else {
             return None;
         };
+        let self_lhs = self.model.left.with_pattern(self.filled_in_lhs());
 
 
         let imdl_lhs = Fact::new(MdlLeftValue::IMdl(self_imdl), TimePatternRange::wildcard());
         // TODO: Consider handling anti-requirements in deduce
+        // TODO: Taking other state changes into account doesn't really make sense, we can end up with wrong knowledge always ruining the solution
         let other_state_changes = instantiated_casual_models
             .iter()
-            .filter_map(|m| m.deduce(&imdl_lhs, &Vec::new()))
+            .filter_map(|m| m.deduce(&imdl_lhs, &anti_requirements).or_else(|| m.deduce(&self_lhs, &anti_requirements)))
             .filter_map(|rhs| {
                 match rhs.pattern {
                     MdlRightValue::MkVal(mk_val) => {
@@ -660,7 +666,7 @@ impl BoundModel {
                             Some((EntityVariableKey::new(&entity_id, &mk_val.var_name), value))
                         }
                         else {
-                            log::error!("Reuse model produced unbound variables during forward chaining. Rhs: {mk_val}");
+                            //log::error!("Reuse model produced unbound variables during forward chaining. Rhs: {mk_val}");
                             None
                         }
                     }
@@ -673,7 +679,7 @@ impl BoundModel {
             .collect_vec();
 
         let mut new_state = state.clone();
-        new_state.variables.extend(other_state_changes);
+        //new_state.variables.extend(other_state_changes);
         new_state.variables.insert(
             EntityVariableKey::new(
                 &mk_val
@@ -685,14 +691,14 @@ impl BoundModel {
             predicted_value,
         );
         new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
-        new_state
+        /*new_state
             .variables
             .extend(compute_state_predictions(&system, &new_state));
         new_state
             .variables
-            .extend(compute_assumptions(&system, &new_state));
+            .extend(compute_assumptions(&system, &new_state));*/
         // Compute instantiated csts again, now with assumption variables
-        new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
+        // new_state.instansiated_csts = compute_instantiated_states(system, &new_state);
 
         Some(new_state)
     }

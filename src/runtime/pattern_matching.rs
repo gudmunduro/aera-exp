@@ -31,7 +31,11 @@ pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> boo
 
     facts.iter().all(|f| {
         let Some(entity_key) = f.pattern.entity_key(&HashMap::new()) else {
-            return false;
+            let matches_any_value = state
+                .variables
+                .iter()
+                .any(|(k, v)| k.entity_id != "co3" && k.var_name == f.pattern.var_name && Some(v) == f.pattern.value.get_value_with_bindings(&HashMap::new()).as_ref());
+            return matches_any_value;
         };
         state
             .variables

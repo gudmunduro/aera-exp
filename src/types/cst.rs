@@ -5,9 +5,10 @@ use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, PatternIt
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use serde::{Deserialize, Serialize};
 use crate::types::value::Value;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cst {
     pub cst_id: String,
     pub facts: Vec<Fact<MkVal>>,
@@ -97,7 +98,7 @@ impl Display for Cst {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ICst {
     pub cst_id: String,
     pub params: Pattern,

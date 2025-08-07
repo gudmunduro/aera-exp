@@ -18,7 +18,7 @@ use crate::runtime::utils::all_req_models;
 
 pub fn extract_patterns(
     changed_var: &EntityVariableKey,
-    before: &Value,
+    before: Option<&Value>,
     after: &Value,
     executed_command: &RuntimeCommand,
     system: &mut System,
@@ -28,9 +28,12 @@ pub fn extract_patterns(
 
     let change = EntityVarChange {
         entity: changed_var.clone(),
-        before: before.clone(),
+        before: before.cloned(),
         after: after.clone(),
     };
+    if changed_var.var_name == "holding" && executed_command.name == "grab" {
+        log::debug!("1");
+    }
     let mut pattern_value_map = create_initial_pattern_value_map(&change, executed_command);
     let cst = form_new_cst_for_state(&change, system, state_before, &mut pattern_value_map);
     let cmd_model =
@@ -86,7 +89,7 @@ fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> St
         model_id: model_id.clone(),
         left: Fact::new(lhs, TimePatternRange::wildcard()),
         right: Fact::new(rhs, TimePatternRange::wildcard()),
-        confidence: 0.5,
+        confidence: 0.6,
         forward_computed: vec![],
         backward_computed: vec![],
     };
@@ -111,22 +114,18 @@ fn form_new_command_model(
         entity_id: EntityPatternValue::Binding(cmd_entity_binding),
         params: create_pattern_for_values(&cmd.params, pattern_value_map),
     });
-    let (fwd_guards, bwd_guards) = create_delta_guards(pattern_value_map);
+    let (fwd_guards, bwd_guards) = create_delta_guards(pattern_value_map, change);
 
-    // Remove all consequent bindings unless there is a delta guard that computes it (otherwise it's useless, and we just want to include a constant)
-    pattern_value_map
-        .retain(|_, b| !b.starts_with("C")
-            || b.starts_with("CMD")
-            || fwd_guards.iter().any(|(gb, _)| b == gb));
+    // Previously consequent bindings were removed here
 
-    if cmd.name == "release" {
-        log::debug!("Release command");
+    if cmd.name == "grab" && change.entity.var_name == "holding" {
+        log::debug!("Grab command / holding");
     }
 
     let rhs = MdlRightValue::MkVal(MkVal {
         entity_id: EntityPatternValue::Binding("PE".to_string()),
         var_name: change.entity.var_name.clone(),
-        value: create_pattern_for_value(&change.after, pattern_value_map, true),
+        value: create_pattern_for_value(&change.after, pattern_value_map, false),
         assumption: false,
     });
 
@@ -137,14 +136,14 @@ fn form_new_command_model(
         right: Fact::new(rhs, TimePatternRange::wildcard()),
         forward_computed: fwd_guards,
         backward_computed: bwd_guards,
-        confidence: 0.5,
+        confidence: 0.6,
     };
     system.models.insert(model_id.clone(), model);
 
     model_id
 }
 
-fn create_delta_guards(pattern_value_map: &PatternValueMap) -> (Vec<(String, Function)>, Vec<(String, Function)>) {
+fn create_delta_guards(pattern_value_map: &PatternValueMap, change: &EntityVarChange) -> (Vec<(String, Function)>, Vec<(String, Function)>) {
     // If there are no C binding, then every value in the consequent matched another either in the premise or the command
     // so there is no need to create a guard
     let non_matching_c_values = pattern_value_map
@@ -171,7 +170,15 @@ fn create_delta_guards(pattern_value_map: &PatternValueMap) -> (Vec<(String, Fun
 
     let (fwd_guards, bwd_guards) = non_matching_c_values
         .iter()
-        .filter_map(|(v, b)| create_delta_guard(&v.0, b, &premise_values, &cmd_values))
+        .filter_map(|(v, b)| {
+            let premise_binding = if let Some(before) = &change.before {
+                find_equivalent_binding_in_other(v, &change.after, &before, pattern_value_map)
+            } else {
+                None
+            };
+
+            create_delta_guard(&v.0, b, &premise_binding, &premise_values, &cmd_values)
+        })
         .unzip();
     (fwd_guards, bwd_guards)
 }
@@ -179,6 +186,7 @@ fn create_delta_guards(pattern_value_map: &PatternValueMap) -> (Vec<(String, Fun
 fn create_delta_guard(
     value: &Value,
     binding: &str,
+    premise_equivalent: &Option<(String, Value)>,
     premise_values: &HashMap<&ValueKey, &String>,
     cmd_values: &HashMap<&ValueKey, &String>,
 ) -> Option<((String, Function), (String, Function))> {
@@ -217,6 +225,31 @@ fn create_delta_guard(
         );
 
         Some(((binding.to_string(), fwd_function), (cmd_binding.to_string(), bwd_function.clone())))
+    } else if let Some((pb, pv)) = premise_equivalent {
+        if value.can_do_numeric_op(pv) {
+            let diff = value.clone() - pv.clone();
+            let fwd_function = Function::Add(
+                Box::new(Function::Value(PatternItem::Binding(
+                    pb.to_string(),
+                ))),
+                Box::new(Function::Value(PatternItem::Value(
+                    diff.clone()
+                ))),
+            );
+            let bwd_function = Function::Sub(
+                Box::new(Function::Value(PatternItem::Binding(
+                    binding.to_string(),
+                ))),
+                Box::new(Function::Value(PatternItem::Value(
+                    diff
+                ))),
+            );
+
+            Some(((binding.to_string(), fwd_function), (pb.to_string(), bwd_function.clone())))
+        }
+        else {
+            None
+        }
     } else {
         None
     }
@@ -251,7 +284,10 @@ fn create_initial_pattern_value_map(
             "CMD_E".to_string(),
         );
     }
-    create_bindings_for_value(&change.before, &mut map, "P", &mut 0);
+    // Only add premise bindings if there is a premise (if the fact is not new)
+    if let Some(before) = &change.before {
+        create_bindings_for_value(&before, &mut map, "P", &mut 0);
+    }
     let mut cmd_binding_index = 0;
     for v in &executed_command.params {
         create_bindings_for_value(v, &mut map, "CMD", &mut cmd_binding_index);
@@ -324,4 +360,20 @@ fn quick_compare_models(req_model1: &Mdl, casual_model1: &Mdl, req_model2: &Mdl,
     let imdl_param_count_matches = matches!((&req_model1.right.pattern, &req_model2.right.pattern), (MdlRightValue::IMdl(imdl1), MdlRightValue::IMdl(imdl2)) if imdl1.params.len() == imdl2.params.len());
 
     lhs_cmd_matches && rhs_var_matches && imdl_param_count_matches
+}
+
+fn find_equivalent_binding_in_other(value_key: &ValueKey, value_of_key: &Value, other_value: &Value, pattern_value_map: &PatternValueMap) -> Option<(String, Value)> {
+    if value_of_key == &value_key.0 {
+        return Some((pattern_value_map.get(&ValueKey(other_value.clone())).cloned()?, other_value.clone()));
+    }
+
+    if let (Value::Vec(v1), Value::Vec(v2)) = (value_of_key, other_value) {
+        for (item1, item2) in v1.iter().zip(v2.iter()) {
+            if let Some(result) = find_equivalent_binding_in_other(value_key, item1, item2, pattern_value_map) {
+                return Some(result);
+            }
+        }
+    }
+
+    None
 }

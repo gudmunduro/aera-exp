@@ -20,9 +20,21 @@ pub fn form_new_cst_for_state(
         .filter(|(key, _)| *key != &change.entity)
         .filter(|(key, value)| change_intersects_entity_var(change, (key, value)))
         .map(|(key, value)| (key, value, false))
+        .sorted_by_key(|(e, _, _)| {
+            // TODO: May have to do the same for CMD_E
+            // Have facts with premise entity at the top
+            if e.entity_id == change.entity.entity_id {
+                0
+            }
+            else {
+                1
+            }
+        })
         .collect_vec();
     // Always have the premise first in the CST
-    matching_entity_vars.insert(0, (&change.entity, &change.before, true));
+    if let Some(before) = &change.before {
+        matching_entity_vars.insert(0, (&change.entity, before, true));
+    }
     let name = generate_cst_name(system);
     let cst = form_new_cst_from_entity_vars(
         name.to_string(),

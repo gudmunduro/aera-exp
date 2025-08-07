@@ -1,9 +1,17 @@
+use std::fs::File;
+use std::io::Write;
+use std::process::exit;
 use crate::runtime::learning;
 use crate::runtime::pattern_matching::state_matches_facts;
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, predict_all_changes_of_command};
+use crate::runtime::simulation::sim_debugger::try_to_find_expected_path;
 use crate::runtime::utils::{compute_assumptions, compute_instantiated_states};
+use crate::types::{Command, EntityPatternValue, Fact, MkVal};
 use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
+use crate::types::value::Value;
+
+const ENABLE_DEBUG: bool = false;
 
 pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut System), eject_command: impl Fn(&RuntimeCommand, &mut System)) {
     let mut system = System::new();
@@ -47,6 +55,12 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
         }
 
         let mut path = if system.babble_command.is_empty() {
+            // For debugging
+            if ENABLE_DEBUG {
+                try_to_find_expected_path(&goal, &system);
+                exit(0);
+            }
+
             // Perform backward chaining
             let bwd_result = backward_chain(&goal, &system);
             log::debug!("Results of backward chaining");
@@ -66,6 +80,17 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
             let command = system.babble_command[0].clone();
             system.babble_command.remove(0);
             last_was_babble_command = true;
+
+            // Save knowledge after performing babble commands
+            /*let json = serde_json::to_string_pretty(&system.models).unwrap();
+            let mut file = File::create("models.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            drop(file);
+            let json = serde_json::to_string_pretty(&system.csts).unwrap();
+            let mut file = File::create("csts.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            log::debug!("Written models and composite states");*/
+
             vec![command]
         };
 

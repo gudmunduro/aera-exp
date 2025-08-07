@@ -431,92 +431,47 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         },
     );
 
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
+    for cst in system.csts.values() {
+        println!("{cst}");
+    }
 
-    // Babble commands for basic demo (that doesn't use tcp)
-    /*system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
+    for model in system.models.values() {
+        println!("{model}");
+    }
 
-    system.goals = vec![
-        vec![
-            Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("h".to_string()),
-                var_name: "holding".to_string(),
-                value: PatternItem::Vec(vec![PatternItem::Binding("co1".to_string())]),
-                assumption: false,
-            }, TimePatternRange::wildcard())
-        ]
-    ];*/
+    let loaded_models: HashMap<String, Mdl> = serde_json::from_str(&std::fs::read_to_string("models.json").unwrap()).unwrap();
+    let loaded_csts: HashMap<String, Cst> = serde_json::from_str(&std::fs::read_to_string("csts.json").unwrap()).unwrap();
 
-    // Simpler demo
-    /*
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });*/
+    let mut added_models = Vec::new();
+    for (mdl_id, model) in loaded_models {
+        /*match &model.left.pattern {
+            MdlLeftValue::Command(cmd) if cmd.name == "move" => {
+                models_to_skip.push(mdl_id);
+                continue
+            }
+            _ => {}
+        }
+        match &model.right.pattern {
+            MdlRightValue::IMdl(imdl) if models_to_skip.contains(&imdl.model_id) => {
+                continue
+            }
+            MdlRightValue::IMdl(imdl) if added_models.contains(&imdl.model_id) => {
+                system.models.remove(&mdl_id);
+                continue
+            }
+            _ => {}
+        }*/
 
+        if !system.models.contains_key(&mdl_id) {
+            added_models.push(mdl_id.clone());
+            system.models.insert(mdl_id, model);
+        }
+    }
+    for (cst_id, cst) in loaded_csts {
+        if !system.csts.contains_key(&cst_id) {
+            system.csts.insert(cst_id, cst);
+        }
+    }
 
     /*system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
@@ -529,67 +484,11 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 Value::Number(0.0),
             ])
         ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co1".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(0.0),
-                Value::Number(-80.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(60.0),
-                Value::Number(50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co2".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(-60.0),
-                Value::Number(-50.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
     });
     system.babble_command.push(RuntimeCommand {
         name: "release".to_string(),
@@ -602,12 +501,13 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         params: vec![
             Value::Vec(vec![
                 Value::Number(-40.0),
-                Value::Number(50.0),
+                Value::Number(-30.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
-    });
+    });*/
+
 
 
     system.goals = vec![
@@ -627,10 +527,10 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 // entity_id: EntityPatternValue::EntityId("co1".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
-                    Value::UncertainNumber(228.00441002220657, 10.0),
-                    Value::UncertainNumber(-49.99883096646674, 10.0),
-                    Value::UncertainNumber(-100.0, 10.0),
-                    Value::UncertainNumber(180.0, 10.0)
+                    Value::UncertainNumber(228.00441002220657, 5.0),
+                    Value::UncertainNumber(-49.99883096646674, 5.0),
+                    Value::UncertainNumber(-100.0, 5.0),
+                    Value::UncertainNumber(180.0, 5.0)
                 ])),
                 assumption: false,
             }, TimePatternRange::wildcard()),

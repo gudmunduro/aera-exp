@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use crate::types::value::Value;
 
 pub type Pattern = Vec<PatternItem>;
 
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PatternItem {
     Any,
     Binding(String),

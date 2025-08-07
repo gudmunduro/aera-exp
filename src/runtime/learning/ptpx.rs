@@ -24,7 +24,7 @@ pub fn extract_patterns(
 
     let change = EntityVarChange {
         entity: entity_var.clone(),
-        before: before.clone(),
+        before: Some(before.clone()),
         // TODO: This is hack to reuse the function, makes it so that facts including the predicted value will be found (i.e. tried to grab and expected *[co1]*)
         after: expected_change.clone(),
     };
