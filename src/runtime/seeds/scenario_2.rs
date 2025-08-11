@@ -389,7 +389,7 @@ pub fn setup_scenario_2(system: &mut System) {
                 entity_id: EntityPatternValue::EntityId("co3".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
-                    Value::UncertainNumber(240.0, 10.0),
+                    Value::UncertainNumber(300.0, 10.0),
                     Value::UncertainNumber(-70.0, 10.0),
                     Value::UncertainNumber(-100.0, 10.0),
                     Value::UncertainNumber(180.0, 10.0)

@@ -69,6 +69,15 @@ impl PatternItem {
             PatternItem::Binding(_) | PatternItem::Any | PatternItem::Value(_) => {}
         }
     }
+    
+    /// Check if the pattern has no concrete value
+    pub fn is_fully_unbound(&self) -> bool {
+        match self {
+            PatternItem::Binding(_) | PatternItem::Any => true,
+            PatternItem::Vec(v) => v.iter().all(|e| e.is_fully_unbound()),
+            PatternItem::Value(_) => false
+        }
+    }
 
     pub fn pattern(&self) -> Pattern {
         vec![self.clone()]

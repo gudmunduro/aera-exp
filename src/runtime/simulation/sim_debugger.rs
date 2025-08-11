@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::process::exit;
 use itertools::Itertools;
-use crate::runtime::pattern_matching::{compare_commands, compare_imdls, state_matches_facts, PatternMatchResult};
+use crate::runtime::pattern_matching::{compare_commands, compare_imdls, compare_pattern_items, state_matches_facts, PatternMatchResult};
 use crate::runtime::simulation::forward::{compute_instantiate_casual_models, compute_merged_forward_backward_models, ObservedState};
 use crate::runtime::utils::{all_causal_models, all_req_models};
-use crate::types::{Command, Fact, MkVal, TimePatternRange, TimePatternValue};
+use crate::types::{Command, EntityPatternValue, Fact, MkVal, TimePatternRange, TimePatternValue};
 use crate::types::models::{AbductionResult, IMdl, Mdl, MdlLeftValue, MdlRightValue};
+use crate::types::pattern::PatternItem;
 use super::backward::{backward_chain, create_variations_of_sub_goal};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::value::Value;
@@ -20,6 +21,38 @@ pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
         Command::new_values("move", "h", &vec![Value::Vec(vec![Value::Number(-27.0), Value::Number(-37.0), Value::Number(0.0), Value::Number(0.0)])]),
         Command::new_values("release", "h", &vec![]),
     ];
+    let expected_mk_vals = vec![
+        Fact::new(MkVal {
+            entity_id: EntityPatternValue::EntityId("h".to_string()),
+            var_name: "position".to_string(),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(267.98901398444303, 10.0),Value::UncertainNumber(-32.32548587749615, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            assumption: false,
+        }, TimePatternRange::wildcard()),
+        Fact::new(MkVal {
+            entity_id: EntityPatternValue::EntityId("h".to_string()),
+            var_name: "holding".to_string(),
+            value: PatternItem::Value(Value::Vec(vec![Value::EntityId("co3".to_string())])),
+            assumption: false,
+        }, TimePatternRange::wildcard()),
+        Fact::new(MkVal {
+            entity_id: EntityPatternValue::EntityId("h".to_string()),
+            var_name: "position".to_string(),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(240.0, 10.0),Value::UncertainNumber(-70.0, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            assumption: false,
+        }, TimePatternRange::wildcard()),
+        Fact::new(MkVal {
+            entity_id: EntityPatternValue::EntityId("co3".to_string()),
+            var_name: "approximate_pos".to_string(),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(240.0, 10.0),Value::UncertainNumber(-70.0, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            assumption: false,
+        }, TimePatternRange::wildcard()),
+        Fact::new(MkVal {
+            entity_id: EntityPatternValue::EntityId("co3".to_string()),
+            var_name: "approximate_pos".to_string(),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(240.0, 10.0),Value::UncertainNumber(-70.0, 10.0), Value::UncertainNumber(-100.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            assumption: false,
+        }, TimePatternRange::wildcard()),
+    ];
     let expected_rhs_properties: Vec<String> = vec!["position".to_string(), "holding".to_string(), "position".to_string(), "approximate_pos".to_string()];
     save_models(system);
     // First, validate that we can find all expected commands through backwards chaining
@@ -29,15 +62,15 @@ pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
     // Create backwards chaining results
     let bwd_results = backward_chain(goal, system);
     // Validate the backwards chaining results contain expected commands
-    let bwd_associated_models = validate_backwards_chaining_result(&bwd_results, &expected_path, &expected_rhs_properties, system);
+    let bwd_associated_models = validate_backwards_chaining_result(&bwd_results, &expected_path, &expected_mk_vals, system);
     // Make sure we can go though all expected commands with forward chaining, using the backwards chaining results
     can_forward_chain_through_models(0, &bwd_associated_models, &bwd_results, goal, &system.current_state, &system);
 }
 
-fn validate_backwards_chaining_result(bwd_result: &Vec<IMdl>, path: &Vec<Command>, rhs_properties: &Vec<String>, system: &System) -> Vec<(Command, Vec<IMdl>)> {
+fn validate_backwards_chaining_result(bwd_result: &Vec<IMdl>, path: &Vec<Command>, expected_mk_vals: &Vec<Fact<MkVal>>, system: &System) -> Vec<(Command, Vec<IMdl>)> {
     let mut path_models = Vec::new();
 
-    for (path_cmd, rhs_prop) in path.iter().zip(rhs_properties.iter()) {
+    for (path_cmd, mk_val) in path.iter().zip(expected_mk_vals.iter()) {
         let mut associated_models = Vec::new();
 
         let mut bwd_cmds = Vec::new();
@@ -59,16 +92,19 @@ fn validate_backwards_chaining_result(bwd_result: &Vec<IMdl>, path: &Vec<Command
             };
             bwd_cmds.push(mdl_cmd.clone());
 
-            if compare_commands(&mdl_cmd, path_cmd, true, false) && &mdl_mk_val.var_name == rhs_prop  {
+            // compare_commands(&mdl_cmd, path_cmd, true, false)
+            if mdl_mk_val.var_name == mk_val.pattern.var_name
+                && compare_pattern_items(&mdl_mk_val.entity_id.to_pattern_item(), &mk_val.pattern.entity_id.to_pattern_item(), true)
+                && compare_pattern_items(&mdl_mk_val.value, &mk_val.pattern.value, true) {
                 associated_models.push(res.clone());
             }
         }
 
         if associated_models.is_empty() {
             log::error!("No model found for {path_cmd} during backward chaining");
-            log::debug!("All backward chaining commands: ");
-            for cmd in bwd_cmds {
-                log::debug!("{cmd}");
+            log::debug!("All backward chaining rhs: ");
+            for bwd in bwd_result {
+                log::debug!("{}", &bwd.instantiate(&HashMap::new(), system).filled_in_rhs());
             }
             exit(1);
         }
@@ -226,7 +262,7 @@ fn can_find_all_needed_models_in_backward_chaining(
     for req_model in all_req_models(system) {
         for cas_model in &matched_models {
             let imdl_rhs = Fact::new(MdlRightValue::IMdl(cas_model.clone()), TimePatternRange::wildcard());
-            if let Some(AbductionResult::SubGoal(sub_goal, sub_goal_cst_id, _)) = req_model.as_bound_model().abduce(&imdl_rhs, system) {
+            if let Some(AbductionResult::SubGoal(sub_goal, sub_goal_cst_id, _, _)) = req_model.as_bound_model().abduce(&imdl_rhs, system) {
                 let is_grab_model = match cas_model.get_model(system) {
                     Mdl {
                         left: Fact { pattern: MdlLeftValue::Command(cmd), .. },

@@ -1,6 +1,6 @@
-use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern, extract_duplicate_bindings_from_pattern_and_values};
+use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, compare_pattern_items, compare_patterns, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern, extract_duplicate_bindings_from_pattern_and_values};
 use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models};
-use crate::types::cst::Cst;
+use crate::types::cst::{Cst, ICst};
 use crate::types::models::{AbductionResult, IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::PatternItem;
 use crate::types::runtime::System;
@@ -8,6 +8,7 @@ use crate::types::value::Value;
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 const MAX_DEPTH: usize = 7;
 
@@ -33,10 +34,10 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
                 Some(EntityDeclaration::new(&entity_binding, &entity_class))
             })
             .collect_vec();
-        create_variations_of_sub_goal(goal, Some(&entities), data)
+        create_variations_of_sub_goal(goal, Some(&entities), data).into_iter().flatten().collect_vec()
     }
     else {
-      vec![goal.clone()]
+      goal.clone()
     };
 
     let req_models = all_req_models(data);
@@ -50,7 +51,8 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
     let casual_models = all_causal_models(data);
     let mut state_prediction_models = all_assumption_models(data);
     state_prediction_models.extend(all_state_prediction_models(data));
-    let mut observed_goals = Vec::new();
+    let mut observed_goals = HashSet::new();
+    let mut observed_csts = HashMap::new();
     let mut goal_req_model_results = Vec::new();
     for goal in goal_variations {
         let (goal_req_models, _) = get_goal_requirements_for_goal(
@@ -60,24 +62,28 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
             &state_prediction_models,
             data,
             &mut observed_goals,
+            &mut observed_csts,
             0,
         );
         goal_req_model_results.extend(goal_req_models);
     }
     goal_req_model_results
         .into_iter()
+        // Quick and dirty way to remove duplicates
         .unique()
         .collect()
 }
 
 /// The recursive part of backward chaining
+/// TODO: Turn observed goals into hashmap to have depth as value of key
 fn get_goal_requirements_for_goal(
-    goal: &Vec<Fact<MkVal>>,
+    goal: &Fact<MkVal>,
     instantiable_cas_mdl: &Vec<IMdl>,
     casual_models: &Vec<Mdl>,
     assumption_models: &Vec<Mdl>,
     data: &System,
-    observed_goals: &mut Vec<(Vec<Fact<MkVal>>, usize)>,
+    observed_goals: &mut HashSet<ObservedGoal>,
+    observed_csts: &mut HashMap<ObservedCst, usize>,
     depth: usize,
 ) -> (Vec<IMdl>, bool) {
     if depth >= MAX_DEPTH {
@@ -91,19 +97,14 @@ fn get_goal_requirements_for_goal(
         .iter()
         .chain(assumption_models.iter())
         // Find and backward chain from all casual models where rhs matches a fact from the goal
-        .flat_map(|m| {
+        .filter_map(|m| {
             let bm = m.as_bound_model();
-            goal.iter()
-                .filter_map(|goal_val| {
-                    bm.abduce(&goal_val.with_pattern(MdlRightValue::MkVal(goal_val.pattern.clone())), data)
-                })
-                .collect_vec()
-        })
-        .collect_vec();
+            bm.abduce(&goal.with_pattern(MdlRightValue::MkVal(goal.pattern.clone())), data)
+        });
 
     for abduction_result in abduction_results {
         let goal_model_imdl = match &abduction_result {
-            AbductionResult::SubGoal(_, _, imdl) | AbductionResult::IMdl(imdl) => imdl
+            AbductionResult::SubGoal(_, _, imdl, _) | AbductionResult::IMdl(imdl) => imdl
         };
 
         // If the causal model can be reached directly from the current state, then we don't have to look further back
@@ -141,8 +142,8 @@ fn get_goal_requirements_for_goal(
         }
 
         let sub_goals = match abduction_result {
-            AbductionResult::SubGoal(sub_goal, cst_id, _) => {
-                vec![(sub_goal, cst_id, goal_model_bm.model.clone())]
+            AbductionResult::SubGoal(sub_goal, cst_id, _, has_bound_values) => {
+                vec![(sub_goal, cst_id, goal_model_bm.model.clone(), has_bound_values)]
             }
             AbductionResult::IMdl(imdl) => {
                 let imdl_fact = Fact::new(MdlRightValue::IMdl(imdl.clone()), TimePatternRange::wildcard());
@@ -150,7 +151,7 @@ fn get_goal_requirements_for_goal(
                     .into_iter()
                     .filter_map(|m| Some((m.as_bound_model().abduce(&imdl_fact, data)?, m)))
                     .map(|(res, m)| match res {
-                        AbductionResult::SubGoal(sub_goal, cst_id, _) => (sub_goal, cst_id, m),
+                        AbductionResult::SubGoal(sub_goal, cst_id, _, icst) => (sub_goal, cst_id, m, icst),
                         AbductionResult::IMdl(imdl) => {
                             panic!("Model chain is too long, got {imdl} when expecting subgoal (icst or mk.val) lhs");
                         }
@@ -160,20 +161,39 @@ fn get_goal_requirements_for_goal(
         };
 
         // Create sub goals from the requirement models
-        for (sub_goal, sub_goal_cst_id, req_model) in sub_goals {
+        for (sub_goal, sub_goal_cst_id, req_model, sub_goal_icst) in sub_goals {
+            // TODO: Duplicate cst level check (are all unbound in cst and was same cst seen before)
+            // (Performance optimizations) Skip fully unbound csts that have been seen before
+            if sub_goal_icst
+                .as_ref()
+                .map(|icst| observed_csts.get(&ObservedCst(icst.clone())))
+                .flatten()
+                .map(|observed_cst_depth| *observed_cst_depth <= depth)
+                .unwrap_or(false) {
+                continue;
+            }
+            if let Some(icst) = sub_goal_icst {
+                observed_csts.insert(ObservedCst(icst), depth);
+            }
+
             let sub_goal_entities = sub_goal_cst_id
                 .map(|cst_id| &data.csts.get(&cst_id).unwrap().entities);
 
             let mut all_sub_goals = create_variations_of_sub_goal(&sub_goal, sub_goal_entities, data);
-            all_sub_goals.insert(0, sub_goal);
+            // Only include the base subgoal if it has any concrete values, subgoals with only bindings are not useful
+            if sub_goal.iter().any(|g| !g.pattern.is_value_fully_unbound()) {
+                all_sub_goals.insert(0, sub_goal);
+            }
 
-            for sub_goal in &all_sub_goals {
+            for sub_goal in all_sub_goals.iter().flatten() {
                 // Don't check goals that have been seen before, to prevent an infinite loop
                 // Re-check the observed goal if it was observed at a higher depth, since we may have reached the depth limit too early
-                if observed_goals.iter().any(|(g, d)| are_goals_equal(g, sub_goal) && *d <= depth) {
+                if matches!(observed_goals.get(&ObservedGoal::new(sub_goal.clone(), depth)), Some(g) if g.depth <= depth) {
                     continue;
                 }
-                observed_goals.push((sub_goal.clone(), depth));
+                let new_observed_goal = ObservedGoal::new(sub_goal.clone(), depth);
+                observed_goals.remove(&new_observed_goal);
+                observed_goals.insert(new_observed_goal);
 
                 let (sub_goal_req_models, sub_goal_reached_current_state) =
                     get_goal_requirements_for_goal(
@@ -183,6 +203,7 @@ fn get_goal_requirements_for_goal(
                         assumption_models,
                         data,
                         observed_goals,
+                        observed_csts,
                         depth + 1,
                     );
 
@@ -220,7 +241,6 @@ pub(super) fn create_variations_of_sub_goal(
             .map(|e| e.to_owned())
             .collect(),
     };
-    let bindings = goal_cst.binding_params();
     let mut possible_entity_binding = goal_cst.all_possible_entity_bindings(system);
     // Possible entity bindings can be zero if there are no entity declarations in cst
     if possible_entity_binding.is_empty() {
@@ -267,3 +287,48 @@ fn create_binding_variation_for_fact_order(facts: &Vec<&Fact<MkVal>>, entity_bin
 
     binding_map.into_iter().collect()
 }
+
+#[derive(Clone)]
+struct ObservedGoal {
+    goal: Fact<MkVal>,
+    depth: usize,
+}
+
+impl ObservedGoal {
+    pub fn new(goal: Fact<MkVal>, depth: usize) -> Self {
+        Self { goal, depth }
+    }
+}
+
+impl Hash for ObservedGoal {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.goal.pattern.var_name.hash(state);
+        matches!(self.goal.pattern.entity_id, EntityPatternValue::EntityId(_)).hash(state);
+    }
+}
+
+impl PartialEq for ObservedGoal {
+    fn eq(&self, other: &Self) -> bool {
+        self.goal.pattern.matches_mk_val(&other.goal.pattern)
+    }
+}
+
+impl Eq for ObservedGoal {}
+
+
+#[derive(Clone)]
+struct ObservedCst(ICst);
+
+impl Hash for ObservedCst {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.cst_id.hash(state);
+    }
+}
+
+impl PartialEq for ObservedCst {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.cst_id == other.0.cst_id && self.0.params == other.0.params
+    }
+}
+
+impl Eq for ObservedCst {}

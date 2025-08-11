@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::string::ToString;
+use std::time::Instant;
 use crate::runtime::pattern_matching::{compare_imdls, state_matches_facts};
 use crate::types::models::{BoundModel, IMdl, MdlLeftValue, MdlRightValue};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
@@ -13,7 +14,8 @@ use crate::types::pattern::PatternItem;
 use crate::types::value::Value;
 use crate::visualize::visualize_forward_chaining;
 
-const MAX_FWD_CHAIN_DEPTH: u64 = 5;
+const MAX_FWD_CHAIN_DEPTH: u64 = 6;
+const TIME_LIMIT_SECS: u64 = 60*10;
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -25,16 +27,11 @@ pub struct ForwardChainNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct ObservedState {
-    pub state: SystemState,
-    pub node: Option<Rc<ForwardChainNode>>,
-    pub reachable_from_depth: u64,
-}
-
-#[derive(Debug, Clone)]
 pub struct ForwardChainState {
     pub observed_states: HashSet<ObservedState>,
     pub min_solution_depth: u64,
+    pub solution_found: bool,
+    pub start_time: Instant,
 }
 
 impl ForwardChainState {
@@ -42,23 +39,36 @@ impl ForwardChainState {
         ForwardChainState {
             observed_states: HashSet::new(),
             min_solution_depth: MAX_FWD_CHAIN_DEPTH,
+            solution_found: false,
+            start_time: Instant::now(),
         }
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ObservedState {
+    pub state: SystemState,
+    pub node: Option<Rc<ForwardChainNode>>,
+    pub reachable_from_depth: u64,
+    pub is_goal_reachable: bool,
+}
+
 impl ObservedState {
-    pub fn new(state: SystemState, node: Option<Rc<ForwardChainNode>>, reachable_from_depth: u64) -> Self {
+    pub fn new(state: SystemState, node: Option<Rc<ForwardChainNode>>, reachable_from_depth: u64, is_goal_reachable: bool) -> Self {
         Self {
             state,
             node,
             reachable_from_depth,
+            is_goal_reachable,
         }
     }
 }
 
 impl Hash for ObservedState {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.state.variables.iter().collect_vec().hash(state);
+        let mut variables = self.state.variables.iter().collect_vec();
+        variables.sort_by_key(|(e, _)| (&e.entity_id, &e.var_name));
+        variables.hash(state);
     }
 }
 
@@ -86,9 +96,13 @@ fn forward_chain_rec(
 ) -> (Vec<Rc<ForwardChainNode>>, bool, u64) {
     if state_matches_facts(state, goal) {
         forward_chain_state.min_solution_depth = forward_chain_state.min_solution_depth.min(depth);
+        forward_chain_state.solution_found = true;
         return (Vec::new(), true, 0);
     }
     if depth >= forward_chain_state.min_solution_depth {
+        return (Vec::new(), false, u64::MAX);
+    }
+    if forward_chain_state.solution_found && forward_chain_state.start_time.elapsed().as_secs() > TIME_LIMIT_SECS {
         return (Vec::new(), false, u64::MAX);
     }
 
@@ -118,19 +132,16 @@ fn forward_chain_rec(
             };
 
             // Don't look at next state if prediction changes nothing or if we have already seen this state
-            let observed_state = ObservedState::new(next_state.clone(), None, depth);
+            let observed_state = ObservedState::new(next_state.clone(), None, depth, false);
             if state == &next_state {
                 continue;
             }
-            if forward_chain_state.observed_states.contains(&observed_state) {
+            if let Some(existing_observed_state) = forward_chain_state.observed_states.get(&observed_state) {
                 // Re-evaluate this state if we reached it at a lower depth, since goal paths could have been skipped due to depth limit
-                if forward_chain_state.observed_states.get(&observed_state).unwrap().reachable_from_depth <= depth {
+                if existing_observed_state.reachable_from_depth <= depth || existing_observed_state.is_goal_reachable {
                     // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
                     // If it has not been computed, then we have most likely found a cycle in the graph
-                    if let Some(node) = forward_chain_state.observed_states
-                        .get(&observed_state)
-                        .map(|s| s.node.as_ref())
-                        .flatten() {
+                    if let Some(node) = existing_observed_state.node.as_ref() {
                         results.push(Rc::new(ForwardChainNode {
                             command,
                             children: node.children.clone(),
@@ -165,7 +176,7 @@ fn forward_chain_rec(
                 min_goal_depth: min_goal_depth.saturating_add(1),
             });
 
-            let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()), depth);
+            let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()), depth, is_goal_path);
             forward_chain_state.observed_states.remove(&new_observed_state);
             forward_chain_state.observed_states.insert(new_observed_state);
             results.push(node);

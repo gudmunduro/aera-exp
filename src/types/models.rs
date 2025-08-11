@@ -399,7 +399,7 @@ impl Display for MdlRightValue {
 
 #[derive(Clone, Debug)]
 pub enum AbductionResult {
-    SubGoal(Vec<Fact<MkVal>>, Option<String>, IMdl),
+    SubGoal(Vec<Fact<MkVal>>, Option<String>, IMdl, Option<ICst>),
     IMdl(IMdl),
 }
 
@@ -491,7 +491,6 @@ impl Eq for IMdl {
 impl Hash for IMdl {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.model_id.hash(state);
-        self.fwd_guard_bindings.iter().collect_vec().hash(state);
     }
 }
 
@@ -580,13 +579,13 @@ impl BoundModel {
                 let mut icst = icst.clone();
                 icst.params = fill_in_pattern_with_bindings(icst.params, &model.bindings);
                 let subgoal_cst = icst.expand_cst(&system);
-                Some(AbductionResult::SubGoal(subgoal_cst.facts, Some(icst.cst_id.to_string()), model.imdl_for_model()))
+                Some(AbductionResult::SubGoal(subgoal_cst.facts, Some(icst.cst_id.clone()), model.imdl_for_model(), Some(icst)))
             }
             MdlLeftValue::MkVal(mk_val) => {
                 let mut mk_val = mk_val.clone();
                 mk_val.entity_id.insert_binding_value(&model.bindings);
                 mk_val.value.insert_binding_values(&model.bindings);
-                Some(AbductionResult::SubGoal(vec![self.model.left.with_pattern(mk_val)], None, model.imdl_for_model()))
+                Some(AbductionResult::SubGoal(vec![self.model.left.with_pattern(mk_val)], None, model.imdl_for_model(), None))
             }
             _ => {
                 Some(AbductionResult::IMdl(model.imdl_for_model()))

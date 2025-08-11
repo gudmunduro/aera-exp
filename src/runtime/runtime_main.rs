@@ -19,7 +19,7 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
 
     let mut last_state = system.current_state.clone();
     let mut last_executed_command = None;
-    let mut last_was_babble_command = false;
+    let mut last_was_babble_command = true;
     let mut predicted_changes = Vec::new();
     loop {
         let goal = system.goals.get(system.current_goal_index).cloned().unwrap_or(Vec::new());

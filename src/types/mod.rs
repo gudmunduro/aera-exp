@@ -195,6 +195,10 @@ impl MkVal {
             self.value.get_bindings()
         }
     }
+    
+    pub fn is_value_fully_unbound(&self) -> bool {
+        self.value.is_fully_unbound()
+    }
 }
 
 impl Display for MkVal {
@@ -277,6 +281,10 @@ impl EntityPatternValue {
 
     pub fn is_entity_id(&self, entity_id: &str) -> bool {
         matches!(self, EntityPatternValue::EntityId(e) if e == entity_id)
+    }
+    
+    pub fn is_unbound(&self) -> bool {
+        matches!(self, EntityPatternValue::Binding(_))
     }
 
     pub fn insert_binding_value(&mut self, bindings: &HashMap<String, Value>) {
