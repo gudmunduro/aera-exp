@@ -63,6 +63,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
+            success_count: 1,
         },
     );
 
@@ -104,6 +105,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             )]
                 .into(),
             confidence: 1.0,
+            success_count: 1,
         },
     );
 
@@ -159,6 +161,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
+            success_count: 1,
         },
     );
 
@@ -204,6 +207,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             )]
                 .into(),
             confidence: 1.0,
+            success_count: 1,
         },
     );
 
@@ -251,6 +255,7 @@ pub fn setup_bindings_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             confidence: 1.0,
+            success_count: 1,
         },
     );
 

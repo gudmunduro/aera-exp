@@ -6,6 +6,8 @@ use crate::types::models::{Mdl, MdlRightValue};
 use crate::types::runtime::{System, SystemState};
 use crate::types::value::Value;
 
+pub const MODEL_CONFIDENCE_THRESHOLD: f64 = 0.59;
+
 pub fn compute_instantiated_states(
     system: &System,
     state: &SystemState,

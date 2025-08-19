@@ -90,6 +90,7 @@ fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> St
         left: Fact::new(lhs, TimePatternRange::wildcard()),
         right: Fact::new(rhs, TimePatternRange::wildcard()),
         confidence: 0.6,
+        success_count: 1,
         forward_computed: vec![],
         backward_computed: vec![],
     };
@@ -137,6 +138,7 @@ fn form_new_command_model(
         forward_computed: fwd_guards,
         backward_computed: bwd_guards,
         confidence: 0.6,
+        success_count: 1,
     };
     system.models.insert(model_id.clone(), model);
 

@@ -203,9 +203,9 @@ impl Hash for Value {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
-            Value::Number(n) => n.to_string(),
+            Value::Number(n) => format!("{n:.2}"),
             Value::ConstantNumber(n) => n.to_string(),
-            Value::UncertainNumber(m, s) => format!("(uncertain {m} {s})"),
+            Value::UncertainNumber(m, s) => format!("(uncertain {m:.2} {s})"),
             Value::String(s) => format!("\"{}\"", s.to_owned()),
             Value::Vec(v) => format!("[{}]", v.iter().map(|e| e.to_string()).join(" ")),
             Value::EntityId(id) => id.to_owned()

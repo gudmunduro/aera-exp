@@ -35,5 +35,14 @@ pub fn extract_patterns(executed_command: &RuntimeCommand, system: &mut System, 
             }
             // ptpx::extract_patterns(key, old_value, &current_value, predicted_value, model, executed_command, system, state_before);
         }
+        else {
+            log::debug!("Expected change did happen, model {} promoted", model.model_id);
+            let model_ref = system.models.get_mut(&model.model_id).unwrap();
+            model_ref.confidence *= 1.2;
+            if model_ref.confidence > 1.0 {
+                model_ref.confidence = 1.0;
+            }
+            model_ref.success_count += 1;
+        }
     }
 }

@@ -66,6 +66,16 @@ fn form_new_cst_from_entity_vars(
             entities_for_class.insert(entity_class, key.entity_id.to_string());
         }
 
+        let other_entity_classes = get_entity_vars_for_value(value)
+            .into_iter()
+            .filter_map(|e| system.find_class_of_entity(&key.entity_id).map(|c| (e, c)))
+            .collect_vec();
+        for (entity_id, class) in other_entity_classes {
+            if !entities_for_class.contains_key(&class) {
+                entities_for_class.insert(class, entity_id);
+            }
+        }
+
         let value: PatternItem = create_pattern_for_value(value, pattern_value_map, false);
 
         let entity_var = Value::EntityId(key.entity_id.clone());
@@ -98,4 +108,20 @@ fn form_new_cst_from_entity_vars(
         facts,
         entities,
     }
+}
+
+fn get_entity_vars_for_value(value: &Value) -> Vec<String> {
+    match value {
+        Value::Number(_) => Vec::new(),
+        Value::ConstantNumber(_) => Vec::new(),
+        Value::UncertainNumber(_, _) => Vec::new(),
+        Value::String(_) => Vec::new(),
+        Value::Vec(vec_values) => {
+            vec_values.iter()
+                .flat_map(|v| get_entity_vars_for_value(v))
+                .collect()
+        },
+        Value::EntityId(entity_id) => vec![entity_id.clone()],
+    }
+
 }

@@ -5,7 +5,7 @@ use crate::runtime::learning;
 use crate::runtime::pattern_matching::state_matches_facts;
 use crate::runtime::simulation::backward::backward_chain;
 use crate::runtime::simulation::forward::{forward_chain, predict_all_changes_of_command};
-use crate::runtime::simulation::sim_debugger::try_to_find_expected_path;
+use crate::runtime::simulation::sim_debugger::{save_models, try_to_find_expected_path};
 use crate::runtime::utils::{compute_assumptions, compute_instantiated_states};
 use crate::types::{Command, EntityPatternValue, Fact, MkVal};
 use crate::types::runtime::{RuntimeCommand, System, SystemState, SystemTime};
@@ -60,11 +60,12 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
                 try_to_find_expected_path(&goal, &system);
                 exit(0);
             }
+            save_models(&system);
 
             // Perform backward chaining
             let bwd_result = backward_chain(&goal, &system);
             log::debug!("Results of backward chaining");
-            for mdl in &bwd_result {
+            for (mdl, _) in &bwd_result {
                 log::debug!("{mdl}");
             }
 
@@ -72,7 +73,7 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
             let mut path = forward_chain(&goal, &bwd_result, &system);
             log::debug!("Results of forward chaining");
             log::debug!("Goal reachable: {}", !path.is_empty());
-            log::debug!("{path:?}");
+            log::debug!("{}", path.iter().map(|cmd| cmd.to_string()).collect::<Vec<String>>().join(", "));
 
             last_was_babble_command = false;
             path
@@ -98,7 +99,7 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
         if !path.is_empty() {
             eject_command(&path[0], &mut system);
             log::info!("Executed command {:?}", &path[0]);
-            predicted_changes = predict_all_changes_of_command(&path[0], &system);
+            predicted_changes = predict_all_changes_of_command(&path[0], false, &system);
             last_executed_command = Some(path.remove(0));
         }
         else {

@@ -8,7 +8,7 @@ use crate::types::models::{BoundModel, IMdl, MdlLeftValue, MdlRightValue};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::{Command, EntityPatternValue, EntityVariableKey, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
-use crate::runtime::utils::all_req_models;
+use crate::runtime::utils::{all_req_models, MODEL_CONFIDENCE_THRESHOLD};
 use crate::types::cst::BoundCst;
 use crate::types::pattern::PatternItem;
 use crate::types::value::Value;
@@ -80,7 +80,7 @@ impl PartialEq for ObservedState {
 
 impl Eq for ObservedState {}
 
-pub fn forward_chain(goal: &Vec<Fact<MkVal>>, goal_requirements: &Vec<IMdl>, system: &System,) -> Vec<RuntimeCommand> {
+pub fn forward_chain(goal: &Vec<Fact<MkVal>>, goal_requirements: &Vec<(IMdl, usize)>, system: &System,) -> Vec<RuntimeCommand> {
     let (forward_chain_graph, _, _) = forward_chain_rec(goal, goal_requirements, &system.current_state, system, &mut ForwardChainState::new(), 0);
     let path = commit_to_path(&forward_chain_graph);
     path
@@ -88,15 +88,23 @@ pub fn forward_chain(goal: &Vec<Fact<MkVal>>, goal_requirements: &Vec<IMdl>, sys
 
 fn forward_chain_rec(
     goal: &Vec<Fact<MkVal>>,
-    goal_requirements: &Vec<IMdl>,
+    goal_requirements: &Vec<(IMdl, usize)>,
     state: &SystemState,
     system: &System,
     forward_chain_state: &mut ForwardChainState,
     depth: u64,
 ) -> (Vec<Rc<ForwardChainNode>>, bool, u64) {
+    let state_str = state.variables.iter()
+        .map(|(k, v)| {
+            let entity = &k.entity_id;
+            let variable = &k.var_name;
+            format!("(mk.val {entity} {variable} {v})")
+        })
+        .collect_vec();
     if state_matches_facts(state, goal) {
         forward_chain_state.min_solution_depth = forward_chain_state.min_solution_depth.min(depth);
         forward_chain_state.solution_found = true;
+        log::debug!("Found goal at depth {depth}");
         return (Vec::new(), true, 0);
     }
     if depth >= forward_chain_state.min_solution_depth {
@@ -111,12 +119,12 @@ fn forward_chain_rec(
     let mut node_min_goal_depth = u64::MAX;
 
     // Get all casual models that can be instantiated with forward chaining
-    let fwd_chained_casual_models = compute_instantiate_casual_models(state, system);
+    let fwd_chained_casual_models = compute_instantiate_casual_models(state, true, system);
 
     let (insatiable_casual_models, final_casual_models)
         = compute_merged_forward_backward_models(&fwd_chained_casual_models, goal_requirements, system);
 
-    for casual_model in final_casual_models.iter().sorted_by_key(|m| -(m.model.confidence * 100.0) as i32) {
+    for (casual_model, _) in final_casual_models.iter().sorted_by_key(|(m, d)| (d, -(m.model.confidence * 100.0) as i32)) {
         if let Some(command) = casual_model
             .get_casual_model_command(&insatiable_casual_models, &system)
             .map(|c| c.to_runtime_command(&casual_model.bindings).ok())
@@ -162,6 +170,7 @@ fn forward_chain_rec(
             }
             forward_chain_state.observed_states.insert(observed_state);
 
+            let command_str = command.to_string();
             let (children, is_goal_path, min_goal_depth) =
                 forward_chain_rec(goal, goal_requirements, &next_state, system, forward_chain_state, depth + 1);
             if is_goal_path {
@@ -186,7 +195,7 @@ fn forward_chain_rec(
     (results, is_in_goal_path, node_min_goal_depth)
 }
 
-pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: &Vec<(IMdl, bool)>, goal_requirements: &Vec<IMdl>, system: &System) -> (Vec<BoundModel>, Vec<BoundModel>) {
+pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: &Vec<(IMdl, bool)>, goal_requirements: &Vec<(IMdl, usize)>, system: &System) -> (Vec<BoundModel>, Vec<(BoundModel, usize)>) {
     let mut insatiable_casual_models = Vec::new();
     // Casual goal models with all bindings filled in form both forward and backward chaining
     let mut final_casual_models = Vec::new();
@@ -196,9 +205,9 @@ pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: 
         }
 
         // Get backward chained casual models
-        for casual_model in goal_requirements
+        for (casual_model, depth) in goal_requirements
             .iter()
-            .filter(|cm| compare_imdls(cm, &fwd_chained_imdl, true, true))
+            .filter(|(cm, _)| compare_imdls(cm, &fwd_chained_imdl, true, true))
         {
             // Fill in bindings that we got from backward chaining but not forward chaining
             let merged_imdl = fwd_chained_imdl.clone().merge_with(casual_model.clone());
@@ -211,7 +220,7 @@ pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: 
             fwd_chained_model.compute_backward_bindings();
             fwd_chained_model.compute_forward_bindings();
 
-            final_casual_models.push(fwd_chained_model);
+            final_casual_models.push((fwd_chained_model, *depth));
         }
 
         // Create a list of all instantiable casual models
@@ -222,7 +231,7 @@ pub(super) fn compute_merged_forward_backward_models(fwd_chained_casual_models: 
     (insatiable_casual_models, final_casual_models)
 }
 
-pub(super) fn compute_instantiate_casual_models(state: &SystemState, system: &System) -> Vec<(IMdl, bool)> {
+pub(super) fn compute_instantiate_casual_models(state: &SystemState, use_confidence_threshold: bool, system: &System) -> Vec<(IMdl, bool)> {
     let instantiated_composite_states = state.instansiated_csts
         .iter()
         .flat_map(|(_, csts)| csts.iter().map(BoundCst::icst_for_cst))
@@ -239,8 +248,13 @@ pub(super) fn compute_instantiate_casual_models(state: &SystemState, system: &Sy
                 })
                 .collect_vec()
         })
-        .map(|rhs| match rhs.pattern {
-            MdlRightValue::IMdl(imdl) => (imdl, rhs.anti),
+        .filter_map(|rhs| match rhs.pattern {
+            MdlRightValue::IMdl(imdl)
+            if !use_confidence_threshold
+                || (system.models[&imdl.model_id].confidence > MODEL_CONFIDENCE_THRESHOLD
+                && system.models[&imdl.model_id].success_count > 1)
+            => Some((imdl, rhs.anti)),
+            MdlRightValue::IMdl(_) => None,
             MdlRightValue::MkVal(_) => {
                 panic!("Rhs of requirement model cannot be mk.val")
             }
@@ -266,14 +280,14 @@ fn commit_to_path(forward_chain_result: &Vec<Rc<ForwardChainNode>>) -> Vec<Runti
 
 }
 
-pub fn predict_all_changes_of_command(command: &RuntimeCommand, system: &System) -> Vec<(EntityVariableKey, Value, IMdl)> {
+pub fn predict_all_changes_of_command(command: &RuntimeCommand, use_confidence_threshold: bool, system: &System) -> Vec<(EntityVariableKey, Value, IMdl)> {
     let lhs_cmd = Fact::new(MdlLeftValue::Command(command.to_command()), TimePatternRange::wildcard());
-    let fwd_chained_casual_models = compute_instantiate_casual_models(&system.current_state, system);
+    let fwd_chained_casual_models = compute_instantiate_casual_models(&system.current_state, use_confidence_threshold, system);
 
-    let anti_requirements = compute_instantiate_casual_models(&system.current_state, &system)
-        .into_iter()
+    let anti_requirements = fwd_chained_casual_models
+        .iter()
         .filter(|(_, anti)| *anti)
-        .map(|(imdl, _)| imdl)
+        .map(|(imdl, _)| imdl.clone())
         .collect_vec();
     let anti_requirements_ref = anti_requirements
         .iter()

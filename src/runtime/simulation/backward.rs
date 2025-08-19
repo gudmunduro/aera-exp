@@ -1,5 +1,5 @@
 use crate::runtime::pattern_matching::{are_goals_equal, compare_imdls, compare_pattern_items, compare_patterns, extract_bindings_from_pattern, extract_bindings_from_patterns, extract_duplicate_bindings_from_pattern, extract_duplicate_bindings_from_pattern_and_values};
-use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models};
+use crate::runtime::utils::{all_assumption_models, all_causal_models, all_req_models, all_state_prediction_models, MODEL_CONFIDENCE_THRESHOLD};
 use crate::types::cst::{Cst, ICst};
 use crate::types::models::{AbductionResult, IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::PatternItem;
@@ -7,12 +7,12 @@ use crate::types::runtime::System;
 use crate::types::value::Value;
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MkVal, TimePatternRange};
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 
 const MAX_DEPTH: usize = 7;
 
-pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
+pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<(IMdl, usize)> {
     let mut instantiable_cas_mdl = Vec::new();
 
     let includes_unbound = goal
@@ -48,14 +48,16 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
         }
     }
 
-    let casual_models = all_causal_models(data);
+    let mut casual_models = all_causal_models(data);
+    casual_models.retain(|m| m.confidence > MODEL_CONFIDENCE_THRESHOLD && m.success_count > 1);
+
     let mut state_prediction_models = all_assumption_models(data);
     state_prediction_models.extend(all_state_prediction_models(data));
     let mut observed_goals = HashSet::new();
     let mut observed_csts = HashMap::new();
     let mut goal_req_model_results = Vec::new();
     for goal in goal_variations {
-        let (goal_req_models, _) = get_goal_requirements_for_goal(
+        let goal_req_models = run_get_goal_requirements_for_goal(
             &goal,
             &instantiable_cas_mdl,
             &casual_models,
@@ -63,7 +65,6 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
             data,
             &mut observed_goals,
             &mut observed_csts,
-            0,
         );
         goal_req_model_results.extend(goal_req_models);
     }
@@ -74,8 +75,47 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<IMdl> {
         .collect()
 }
 
+pub fn run_get_goal_requirements_for_goal(
+    goal: &Fact<MkVal>,
+    instantiable_cas_mdl: &Vec<IMdl>,
+    casual_models: &Vec<Mdl>,
+    assumption_models: &Vec<Mdl>,
+    data: &System,
+    observed_goals: &mut HashSet<ObservedGoal>,
+    observed_csts: &mut HashMap<ObservedCst, usize>,
+) -> Vec<(IMdl, usize)> {
+    let mut all_goal_requirements: Vec<(IMdl, usize)> = Vec::new();
+    let mut queue: VecDeque<(Fact<MkVal>, usize)> = VecDeque::new();
+
+    queue.push_back((goal.clone(), 0));
+
+    while let Some((current_goal, depth)) = queue.pop_front() {
+        let (mut goal_requirements, sub_goals, _) = get_goal_requirements_for_goal(
+            &current_goal,
+            instantiable_cas_mdl,
+            casual_models,
+            assumption_models,
+            data,
+            observed_goals,
+            observed_csts,
+            depth,
+        );
+
+        all_goal_requirements.append(&mut goal_requirements);
+        if depth < MAX_DEPTH {
+            for sub_goal in sub_goals {
+                queue.push_back((sub_goal, depth + 1));
+            }
+        }
+    }
+
+    all_goal_requirements
+}
+
 /// The recursive part of backward chaining
 /// TODO: Turn observed goals into hashmap to have depth as value of key
+/// TODO: Modify into bfs (probably some kind of accumulate states to visit), and store depth that states were found at
+/// TODO: then use the depth in forward chaining to prioritize the shortest path
 fn get_goal_requirements_for_goal(
     goal: &Fact<MkVal>,
     instantiable_cas_mdl: &Vec<IMdl>,
@@ -85,13 +125,14 @@ fn get_goal_requirements_for_goal(
     observed_goals: &mut HashSet<ObservedGoal>,
     observed_csts: &mut HashMap<ObservedCst, usize>,
     depth: usize,
-) -> (Vec<IMdl>, bool) {
+) -> (Vec<(IMdl, usize)>, Vec<Fact<MkVal>>, bool) {
     if depth >= MAX_DEPTH {
-        return (Vec::new(), false);
+        return (Vec::new(), Vec::new(), false);
     }
 
     let mut reached_current_state = false;
-    let mut goal_requirements: Vec<IMdl> = Vec::new();
+    let mut goal_requirements: Vec<(IMdl, usize)> = Vec::new();
+    let mut subgoals = Vec::new();
 
     let abduction_results = casual_models
         .iter()
@@ -112,7 +153,7 @@ fn get_goal_requirements_for_goal(
             compare_imdls(imdl_val, &goal_model_imdl, true, true)
         }) {
             reached_current_state = true;
-            goal_requirements.push(goal_model_imdl.clone());
+            goal_requirements.push((goal_model_imdl.clone(), depth));
             continue;
         }
 
@@ -138,7 +179,7 @@ fn get_goal_requirements_for_goal(
 
         if goal_model_bm.model.is_casual_model() {
             // Add this casual model as a goal requirement to use during forward chaining
-            goal_requirements.push(goal_model_imdl.clone());
+            goal_requirements.push((goal_model_imdl.clone(), depth));
         }
 
         let sub_goals = match abduction_result {
@@ -162,8 +203,7 @@ fn get_goal_requirements_for_goal(
 
         // Create sub goals from the requirement models
         for (sub_goal, sub_goal_cst_id, req_model, sub_goal_icst) in sub_goals {
-            // TODO: Duplicate cst level check (are all unbound in cst and was same cst seen before)
-            // (Performance optimizations) Skip fully unbound csts that have been seen before
+            // (Performance optimizations) Skip csts that have been seen before
             if sub_goal_icst
                 .as_ref()
                 .map(|icst| observed_csts.get(&ObservedCst(icst.clone())))
@@ -185,7 +225,7 @@ fn get_goal_requirements_for_goal(
                 all_sub_goals.insert(0, sub_goal);
             }
 
-            for sub_goal in all_sub_goals.iter().flatten() {
+            for sub_goal in all_sub_goals.into_iter().flatten() {
                 // Don't check goals that have been seen before, to prevent an infinite loop
                 // Re-check the observed goal if it was observed at a higher depth, since we may have reached the depth limit too early
                 if matches!(observed_goals.get(&ObservedGoal::new(sub_goal.clone(), depth)), Some(g) if g.depth <= depth) {
@@ -194,29 +234,12 @@ fn get_goal_requirements_for_goal(
                 let new_observed_goal = ObservedGoal::new(sub_goal.clone(), depth);
                 observed_goals.remove(&new_observed_goal);
                 observed_goals.insert(new_observed_goal);
-
-                let (sub_goal_req_models, sub_goal_reached_current_state) =
-                    get_goal_requirements_for_goal(
-                        &sub_goal,
-                        instantiable_cas_mdl,
-                        casual_models,
-                        assumption_models,
-                        data,
-                        observed_goals,
-                        observed_csts,
-                        depth + 1,
-                    );
-
-                // Prune dead ends from backward chaining tree (paths that cannot be used to reach the current state)
-                if sub_goal_reached_current_state {
-                    goal_requirements.extend(sub_goal_req_models);
-                    reached_current_state = true;
-                }
+                subgoals.push(sub_goal);
             }
         }
     }
 
-    (goal_requirements, reached_current_state)
+    (goal_requirements, subgoals, reached_current_state)
 }
 
 /// Create variations of the subgoal with possible binding assignments

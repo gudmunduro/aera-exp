@@ -21,6 +21,7 @@ pub struct Mdl {
     pub left: Fact<MdlLeftValue>,
     pub right: Fact<MdlRightValue>,
     pub confidence: f64,
+    pub success_count: usize,
     pub forward_computed: Vec<(String, Function)>,
     pub backward_computed: Vec<(String, Function)>,
 }
@@ -227,7 +228,7 @@ impl Display for Mdl {
             writeln!(f, "  {binding}:{func}")?;
         }
 
-        write!(f, ")")?;
+        write!(f, "); Confidence {}, Success count: {}", self.confidence, self.success_count)?;
 
         Ok(())
     }
@@ -678,7 +679,7 @@ impl BoundModel {
             .collect_vec();
 
         let mut new_state = state.clone();
-        //new_state.variables.extend(other_state_changes);
+        new_state.variables.extend(other_state_changes);
         new_state.variables.insert(
             EntityVariableKey::new(
                 &mk_val
