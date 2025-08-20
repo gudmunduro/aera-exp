@@ -24,6 +24,7 @@ pub struct ForwardChainNode {
     pub children: Vec<Rc<ForwardChainNode>>,
     pub is_in_goal_path: bool,
     pub min_goal_depth: u64,
+    pub depth: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -50,7 +51,6 @@ pub struct ObservedState {
     pub state: SystemState,
     pub node: Option<Rc<ForwardChainNode>>,
     pub reachable_from_depth: u64,
-    pub is_goal_reachable: bool,
 }
 
 impl ObservedState {
@@ -59,7 +59,6 @@ impl ObservedState {
             state,
             node,
             reachable_from_depth,
-            is_goal_reachable,
         }
     }
 }
@@ -146,15 +145,18 @@ fn forward_chain_rec(
             }
             if let Some(existing_observed_state) = forward_chain_state.observed_states.get(&observed_state) {
                 // Re-evaluate this state if we reached it at a lower depth, since goal paths could have been skipped due to depth limit
-                if existing_observed_state.reachable_from_depth <= depth || existing_observed_state.is_goal_reachable {
+                if existing_observed_state.reachable_from_depth <= depth || existing_observed_state.node.as_ref().map(|n| n.is_in_goal_path).unwrap_or(false) {
                     // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
                     // If it has not been computed, then we have most likely found a cycle in the graph
                     if let Some(node) = existing_observed_state.node.as_ref() {
+                        // Take into account the depth we are at now when setting min goal depth, since min goal depth was originally computed from a different path
+                        let min_goal_depth_from_current = node.min_goal_depth - (node.depth - depth);
                         results.push(Rc::new(ForwardChainNode {
                             command,
                             children: node.children.clone(),
                             is_in_goal_path: node.is_in_goal_path,
-                            min_goal_depth: node.min_goal_depth,
+                            min_goal_depth: min_goal_depth_from_current,
+                            depth
                         }));
                         if node.is_in_goal_path {
                             node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth.saturating_add(1));
@@ -183,6 +185,7 @@ fn forward_chain_rec(
                 children,
                 is_in_goal_path: is_goal_path,
                 min_goal_depth: min_goal_depth.saturating_add(1),
+                depth
             });
 
             let new_observed_state = ObservedState::new(next_state.clone(), Some(node.clone()), depth, is_goal_path);
