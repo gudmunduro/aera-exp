@@ -3,6 +3,7 @@ mod utils;
 mod model_comparison;
 mod ptpx;
 mod cst;
+mod full_causal_model_comparison;
 
 use crate::types::EntityVariableKey;
 use crate::types::models::IMdl;
@@ -27,22 +28,15 @@ pub fn extract_patterns(executed_command: &RuntimeCommand, system: &mut System, 
         log::debug!("Expected change {predicted_value} on {key:?} using model {}", model.model_id);
         // The state did not change when we expected it to
         if &current_value != predicted_value {
-            log::debug!("Expected change did not happen, model {} demoted", model.model_id);
+            log::debug!("Expected change did not happen, model {} demoted (expected {} got {})", model.model_id, &predicted_value, &current_value);
             let model_ref = system.models.get_mut(&model.model_id).unwrap();
-            model_ref.confidence *= 0.6;
-            if model_ref.confidence < 0.1 {
-                model_ref.confidence = 0.0;
-            }
+            model_ref.demote();
             // ptpx::extract_patterns(key, old_value, &current_value, predicted_value, model, executed_command, system, state_before);
         }
         else {
             log::debug!("Expected change did happen, model {} promoted", model.model_id);
             let model_ref = system.models.get_mut(&model.model_id).unwrap();
-            model_ref.confidence *= 1.2;
-            if model_ref.confidence > 1.0 {
-                model_ref.confidence = 1.0;
-            }
-            model_ref.success_count += 1;
+            model_ref.promote();
         }
     }
 }

@@ -25,7 +25,7 @@ pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
         Fact::new(MkVal {
             entity_id: EntityPatternValue::EntityId("h".to_string()),
             var_name: "position".to_string(),
-            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(324.00, 10.0),Value::UncertainNumber(-75.32, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(332.00, 10.0),Value::UncertainNumber(-54.00, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
             assumption: false,
         }, TimePatternRange::wildcard()),
         Fact::new(MkVal {
@@ -37,7 +37,7 @@ pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
         Fact::new(MkVal {
             entity_id: EntityPatternValue::EntityId("co3".to_string()),
             var_name: "approximate_pos".to_string(),
-            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(340.0, 10.0),Value::UncertainNumber(70.0, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(340.0, 10.0),Value::UncertainNumber(60.0, 10.0), Value::UncertainNumber(0.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
             assumption: false,
         }, TimePatternRange::wildcard()),
         /*Fact::new(MkVal {
@@ -49,7 +49,7 @@ pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
         Fact::new(MkVal {
             entity_id: EntityPatternValue::EntityId("co3".to_string()),
             var_name: "approximate_pos".to_string(),
-            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(340.0, 10.0),Value::UncertainNumber(70.0, 10.0), Value::UncertainNumber(-100.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
+            value: PatternItem::Value(Value::Vec(vec![Value::UncertainNumber(340.0, 10.0),Value::UncertainNumber(60.0, 10.0), Value::UncertainNumber(-100.0, 10.0),Value::UncertainNumber(180.0, 10.0)])),
             assumption: false,
         }, TimePatternRange::wildcard()),
     ];
@@ -323,10 +323,10 @@ fn print_all_variables(state: &SystemState) {
 }
 
 pub fn save_models(system: &System) {
-    let req_model = all_req_models(system);
+    let req_models = all_req_models(system);
 
     let mut output = fs::File::create("models2.replicode").unwrap();
-    for req_mdl in &req_model {
+    for req_mdl in req_models.iter().sorted_by_key(|m| (system.models[&m.right.pattern.as_imdl().model_id].confidence() * 100.0) as i32) {
         if let MdlLeftValue::ICst(icst) = &req_mdl.left.pattern {
             let cst = &system.csts[&icst.cst_id];
             writeln!(&mut output, "{cst}").unwrap();

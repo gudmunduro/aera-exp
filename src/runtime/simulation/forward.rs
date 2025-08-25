@@ -123,7 +123,7 @@ fn forward_chain_rec(
     let (insatiable_casual_models, final_casual_models)
         = compute_merged_forward_backward_models(&fwd_chained_casual_models, goal_requirements, system);
 
-    for (casual_model, _) in final_casual_models.iter().sorted_by_key(|(m, d)| (d, -(m.model.confidence * 100.0) as i32)) {
+    for (casual_model, _) in final_casual_models.iter().sorted_by_key(|(m, d)| (d, -(m.model.confidence() * 100.0) as i32)) {
         if let Some(command) = casual_model
             .get_casual_model_command(&insatiable_casual_models, &system)
             .map(|c| c.to_runtime_command(&casual_model.bindings).ok())
@@ -149,17 +149,15 @@ fn forward_chain_rec(
                     // If the node for this state has been computed, then add it since we may have found an alternative (potentially better) path to it
                     // If it has not been computed, then we have most likely found a cycle in the graph
                     if let Some(node) = existing_observed_state.node.as_ref() {
-                        // Take into account the depth we are at now when setting min goal depth, since min goal depth was originally computed from a different path
-                        let min_goal_depth_from_current = node.min_goal_depth - (node.depth - depth);
                         results.push(Rc::new(ForwardChainNode {
                             command,
                             children: node.children.clone(),
                             is_in_goal_path: node.is_in_goal_path,
-                            min_goal_depth: min_goal_depth_from_current,
+                            min_goal_depth: node.min_goal_depth,
                             depth
                         }));
                         if node.is_in_goal_path {
-                            node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth.saturating_add(1));
+                            node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth);
                             is_in_goal_path = true;
                         }
                     }
@@ -254,7 +252,7 @@ pub(super) fn compute_instantiate_casual_models(state: &SystemState, use_confide
         .filter_map(|rhs| match rhs.pattern {
             MdlRightValue::IMdl(imdl)
             if !use_confidence_threshold
-                || (system.models[&imdl.model_id].confidence > MODEL_CONFIDENCE_THRESHOLD
+                || (system.models[&imdl.model_id].confidence() > MODEL_CONFIDENCE_THRESHOLD
                 && system.models[&imdl.model_id].success_count > 1)
             => Some((imdl, rhs.anti)),
             MdlRightValue::IMdl(_) => None,

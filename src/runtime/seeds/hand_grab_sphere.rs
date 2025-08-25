@@ -57,7 +57,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -99,7 +99,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 ),
             )]
                 .into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -169,7 +169,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -197,7 +197,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -255,7 +255,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -283,7 +283,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -317,7 +317,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -357,7 +357,7 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                     Box::new(Function::Value(PatternItem::Binding("p".to_string()))),
                 ),
             )].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );

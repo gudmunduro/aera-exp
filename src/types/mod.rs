@@ -35,11 +35,9 @@ impl Command {
     }
 
     pub fn to_runtime_command(&self, bindings: &HashMap<String, Value>) -> anyhow::Result<RuntimeCommand> {
-        let params = bind_values_to_pattern(&self.params, bindings);
-
-        if params.len() < self.params.len() {
-            bail!("Cannot get command {} from model. Bindings missing for params", &self.name);
-        }
+        let Some(params) = bind_values_to_pattern(&self.params, bindings) else {
+            bail!("Cannot get command {} from model. Bindings missing for params", &self.name)
+        };
 
         Ok(RuntimeCommand {
             name: self.name.clone(),

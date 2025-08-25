@@ -69,7 +69,7 @@ pub fn setup_scenario_2(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );*/
@@ -130,7 +130,7 @@ pub fn setup_scenario_2(system: &mut System) {
                     ),
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );*/
@@ -204,7 +204,7 @@ pub fn setup_scenario_2(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -265,7 +265,7 @@ pub fn setup_scenario_2(system: &mut System) {
                     ),
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );*/
@@ -278,8 +278,32 @@ pub fn setup_scenario_2(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
+                Value::Number(-50.0),
+                Value::Number(-30.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
                 Value::Number(50.0),
-                Value::Number(70.0),
+                Value::Number(30.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(50.0),
+                Value::Number(85.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -422,8 +446,20 @@ pub fn setup_scenario_2(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(-20.0),
+                Value::Number(-40.0),
+                Value::Number(50.0),
                 Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(20.0),
+                Value::Number(-50.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -437,8 +473,6 @@ pub fn setup_scenario_2(system: &mut System) {
 
     system.goals = vec![
         vec![
-            //
-            // Here it should push the green cube (as that is faster to move it only by ~20)
             Fact::new(MkVal {
                 entity_id: EntityPatternValue::EntityId("co3".to_string()),
                 var_name: "approximate_pos".to_string(),

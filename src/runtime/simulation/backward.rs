@@ -49,7 +49,8 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<(IMdl, usiz
     }
 
     let mut casual_models = all_causal_models(data);
-    casual_models.retain(|m| m.confidence > MODEL_CONFIDENCE_THRESHOLD && m.success_count > 1);
+    casual_models.retain(|m| m.confidence() > MODEL_CONFIDENCE_THRESHOLD && m.success_count > 1);
+    // TODO: Find all req models based on lhs on all causal models (to take confidence into account)
 
     let mut state_prediction_models = all_assumption_models(data);
     state_prediction_models.extend(all_state_prediction_models(data));

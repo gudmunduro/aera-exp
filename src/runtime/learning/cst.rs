@@ -68,7 +68,7 @@ fn form_new_cst_from_entity_vars(
 
         let other_entity_classes = get_entity_vars_for_value(value)
             .into_iter()
-            .filter_map(|e| system.find_class_of_entity(&key.entity_id).map(|c| (e, c)))
+            .filter_map(|e| system.find_class_of_entity(&e).map(|c| (e, c)))
             .collect_vec();
         for (entity_id, class) in other_entity_classes {
             if !entities_for_class.contains_key(&class) {

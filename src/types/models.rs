@@ -20,8 +20,8 @@ pub struct Mdl {
     pub model_id: String,
     pub left: Fact<MdlLeftValue>,
     pub right: Fact<MdlRightValue>,
-    pub confidence: f64,
     pub success_count: usize,
+    pub failure_count: usize,
     pub forward_computed: Vec<(String, Function)>,
     pub backward_computed: Vec<(String, Function)>,
 }
@@ -200,6 +200,25 @@ impl Mdl {
             bindings: HashMap::new(),
         }
     }
+    
+    pub fn promote(&mut self) {
+        self.success_count += 1;
+    }
+
+    pub fn demote(&mut self) {
+        self.failure_count += 1;
+    }
+
+    pub fn confidence(&self) -> f64 {
+        if self.failure_count == 0 && self.success_count < 2 {
+            0.6
+        }
+        else {
+            // Add 1 to both success and failure so models with few successes don't automatically get 100%
+            let evidence_count = (self.success_count + self.failure_count + 2) as f64;
+            ((self.success_count + 1) as f64 / evidence_count).min(1.0)
+        }
+    }
 }
 
 impl Display for Mdl {
@@ -228,7 +247,7 @@ impl Display for Mdl {
             writeln!(f, "  {binding}:{func}")?;
         }
 
-        write!(f, "); Confidence {}, Success count: {}", self.confidence, self.success_count)?;
+        write!(f, "); Confidence {}, Success count: {}", self.confidence(), self.success_count)?;
 
         Ok(())
     }
@@ -685,7 +704,7 @@ impl BoundModel {
                 &mk_val
                     .entity_id
                     .get_id_with_bindings(&self.bindings)
-                    .expect("Entity binding missing when performing state change"),
+                    .expect(&format!("Entity binding missing when performing state change. Model: {}", &self.model.model_id)),
                 &mk_val.var_name,
             ),
             predicted_value,

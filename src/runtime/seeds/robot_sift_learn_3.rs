@@ -69,7 +69,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -130,7 +130,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 ),
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -207,7 +207,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -235,7 +235,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -299,7 +299,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -327,7 +327,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -363,7 +363,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -407,7 +407,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                     )
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );

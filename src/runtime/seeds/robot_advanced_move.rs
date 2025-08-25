@@ -70,7 +70,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -145,7 +145,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     ),
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -230,7 +230,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -258,7 +258,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -332,7 +332,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -360,7 +360,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: [].into(),
             backward_computed: [].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -397,7 +397,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -445,7 +445,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     )
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );*/
@@ -516,7 +516,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -589,7 +589,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     ),
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -674,7 +674,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
                     Function::ConvertToNumber(Box::new(Function::Value(PatternItem::Binding("ent".to_string()))))
                 ),
             ].into(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );
@@ -738,7 +738,7 @@ pub fn setup_robot_advanced_seed(system: &mut System) {
             ),
             forward_computed: Default::default(),
             backward_computed: Default::default(),
-            confidence: 1.0,
+            failure_count: 0,
             success_count: 1,
         },
     );*/

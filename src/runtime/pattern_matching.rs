@@ -12,14 +12,14 @@ pub enum PatternMatchResult {
     False,
 }
 
-pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, Value>) -> Vec<Value> {
+pub fn bind_values_to_pattern(pattern: &Pattern, bindings: &HashMap<String, Value>) -> Option<Vec<Value>> {
     pattern
         .iter()
-        .filter_map(|p| match p {
+        .map(|p| match p {
             PatternItem::Any => panic!("Wildcard in parma pattern is not supported"),
             PatternItem::Binding(b) => bindings.get(b).map(|v| v.clone()),
             PatternItem::Value(v) => Some(v.clone()),
-            PatternItem::Vec(v) => Some(Value::Vec(bind_values_to_pattern(v, bindings))),
+            PatternItem::Vec(v) => Some(Value::Vec(bind_values_to_pattern(v, bindings)?)),
         })
         .collect()
 }

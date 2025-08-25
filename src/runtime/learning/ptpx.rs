@@ -74,7 +74,7 @@ fn form_new_anti_req_model(cst: &Cst, failed_command_model: &IMdl, pattern_map: 
         model_id: model_id.clone(),
         left: Fact::new(lhs, TimePatternRange::wildcard()),
         right: Fact::anti(rhs, TimePatternRange::wildcard()),
-        confidence: 0.5,
+        failure_count: 0,
         success_count: 1,
         forward_computed: vec![],
         backward_computed: vec![],

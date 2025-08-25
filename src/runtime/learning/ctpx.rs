@@ -31,9 +31,6 @@ pub fn extract_patterns(
         before: before.cloned(),
         after: after.clone(),
     };
-    if changed_var.var_name == "holding" && executed_command.name == "grab" {
-        log::debug!("1");
-    }
     let mut pattern_value_map = create_initial_pattern_value_map(&change, executed_command);
     let cst = form_new_cst_for_state(&change, system, state_before, &mut pattern_value_map);
     let cmd_model =
@@ -89,7 +86,7 @@ fn form_new_req_model(cst: &Cst, command_model: &Mdl, system: &mut System) -> St
         model_id: model_id.clone(),
         left: Fact::new(lhs, TimePatternRange::wildcard()),
         right: Fact::new(rhs, TimePatternRange::wildcard()),
-        confidence: 0.6,
+        failure_count: 0,
         success_count: 1,
         forward_computed: vec![],
         backward_computed: vec![],
@@ -137,7 +134,7 @@ fn form_new_command_model(
         right: Fact::new(rhs, TimePatternRange::wildcard()),
         forward_computed: fwd_guards,
         backward_computed: bwd_guards,
-        confidence: 0.6,
+        failure_count: 0,
         success_count: 1,
     };
     system.models.insert(model_id.clone(), model);
@@ -327,16 +324,19 @@ fn check_and_merge_with_existing_model(cst: &Cst, req_model: &Mdl, casual_model:
             let cst = system.csts.get(cst_id).expect("Cst from req model missing");
             (cst.clone(), req_model, casual_model)
         })
-        .filter_map(|(cst2, req_model2, casual_model2)| {
+        .find_map(|(cst2, req_model2, casual_model2)| {
             let new_cst = compare_model_effects(&cst2, &req_model2, &casual_model2, cst, req_model, casual_model, system)?;
             Some((new_cst, req_model2, casual_model2))
-        })
-        .next() else {
+        }) else {
         return;
     };
 
     let new_cst_id = new_cst.cst_id.clone();
     system.csts.insert(new_cst_id.clone(), new_cst);
+    
+    // Since the model would have succeeded if it had already been merged, promote it
+    system.models.get_mut(&new_casual_model.model_id).unwrap().promote();
+    
     let new_cst = system.csts.get(&new_cst_id).unwrap();
     let new_req_model_ref = system.models.get_mut(&new_req_model.model_id).unwrap();
     new_req_model_ref.left = new_req_model_ref.left.with_pattern(MdlLeftValue::ICst(ICst {

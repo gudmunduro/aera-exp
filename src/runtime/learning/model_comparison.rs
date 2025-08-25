@@ -1,7 +1,5 @@
-use crate::runtime::pattern_matching::{
-    compare_commands, compare_imdls, compare_pattern_items,
-};
-use crate::types::cst::Cst;
+use crate::runtime::pattern_matching::{compare_commands, compare_imdls, compare_pattern_items, extract_bindings_from_pattern};
+use crate::types::cst::{Cst, ICst};
 use crate::types::functions::Function;
 use crate::types::models::{BoundModel, IMdl, Mdl, MdlLeftValue, MdlRightValue};
 use crate::types::pattern::{Pattern, PatternItem};
@@ -9,6 +7,7 @@ use crate::types::runtime::System;
 use crate::types::{EntityDeclaration, EntityPatternValue, Fact, MatchesFact, MkVal};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use crate::runtime::learning::full_causal_model_comparison::compare_casual_models_with_bindings;
 use crate::types::value::Value;
 
 pub fn compare_model_effects(
@@ -30,6 +29,11 @@ pub fn compare_model_effects(
         return None;
     }
 
+    let (icst1, icst2) = match (&req_model.left.pattern, &other_req_model.left.pattern) {
+        (MdlLeftValue::ICst(icst1), MdlLeftValue::ICst(icst2)) => (icst1, icst2),
+        _ => return None,
+    };
+
     // Create a binding map mapping from model1 bindings to model2 bindings
     let (imdl1, imdl2) = match (&req_model.right.pattern, &other_req_model.right.pattern) {
         (MdlRightValue::IMdl(imdl1), MdlRightValue::IMdl(imdl2))
@@ -43,12 +47,15 @@ pub fn compare_model_effects(
     if !construct_binding_map(imdl1, imdl2, &mut binding_map) {
         return None;
     }
+    if !compare_casual_models_with_bindings(casual_model, other_causal_model) {
+        return None;
+    }
 
     // Check if every binding appears in a fact that is in both csts
     let mut new_cst = Cst::new(cst.cst_id.clone());
     let mut matching_binding_set = HashSet::new();
     let mut combined_cst_binding_map = CombinedCstBindingMap::new();
-    let expected_bindings = binding_map.values().cloned().collect::<HashSet<_>>();
+    let expected_bindings = construct_expected_bindings(&binding_map, icst1, icst2);
     for e in &cst.entities {
         let Some(mapped_binding) = binding_map.get(&e.binding) else {
             // Check if the other cst still has a declaration of the same class, and if it does add a new entry to the binding map.
@@ -85,10 +92,12 @@ pub fn compare_model_effects(
             new_cst.facts.push(merge_facts(f, f2, &mut combined_cst_binding_map));
         }
         else {
-            log::debug!("Skipped fact {f} for not being equal");
+            log::debug!("Skipped fact {f} ({f_mapped}) for not being equal");
         }
     }
-    if matching_binding_set.symmetric_difference(&expected_bindings).count() > 0 {
+    if !expected_bindings.is_subset(&matching_binding_set) {
+        log::debug!("Skipped due to {} bindings not matching", matching_binding_set.symmetric_difference(&expected_bindings).count());
+        log::debug!("{}", &matching_binding_set.symmetric_difference(&expected_bindings).join(", "));
         return None;
     }
 
@@ -104,18 +113,22 @@ fn map_fact_bindings(
 ) -> Option<Fact<MkVal>> {
     let mut f = f.clone();
 
-    f.pattern.entity_id = match f.pattern.entity_id {
+    f.pattern.entity_id = map_entity_pattern_binding(f.pattern.entity_id, binding_map)?;
+    f.pattern.value = map_pattern_item_bindings(&f.pattern.value, binding_map)?;
+
+    Some(f)
+}
+
+fn map_entity_pattern_binding(p: EntityPatternValue, binding_map: &HashMap<String, String>) -> Option<EntityPatternValue> {
+    match p {
         EntityPatternValue::Binding(binding) => {
             let Some(new_binding) = &binding_map.get(&binding) else {
                 return None;
             };
-            EntityPatternValue::Binding(new_binding.to_string())
+            Some(EntityPatternValue::Binding(new_binding.to_string()))
         }
-        e @ EntityPatternValue::EntityId(_) => e,
-    };
-    f.pattern.value = map_pattern_item_bindings(&f.pattern.value, binding_map)?;
-
-    Some(f)
+        e @ EntityPatternValue::EntityId(_) => Some(e),
+    }
 }
 
 fn map_pattern_item_bindings(
@@ -129,13 +142,15 @@ fn map_pattern_item_bindings(
             Some(binding_map.get(binding).cloned().map(PatternItem::Binding).unwrap_or(PatternItem::Any))
         }
         PatternItem::Vec(v) => {
-            let res: Option<Vec<PatternItem>> = v
-                .iter()
-                .map(|p| map_pattern_item_bindings(p, binding_map))
-                .collect();
-            res.map(PatternItem::Vec)
+            map_pattern_bindings(v, binding_map).map(PatternItem::Vec)
         }
     }
+}
+
+fn map_pattern_bindings(p: &Pattern, binding_map: &HashMap<String, String>) -> Option<Pattern> {
+    p.iter()
+        .map(|p| map_pattern_item_bindings(p, binding_map))
+        .collect()
 }
 
 fn get_fact_binding_set(fact: &Fact<MkVal>) -> HashSet<String> {
@@ -198,7 +213,25 @@ fn add_to_binding_map(
     }
 }
 
+fn construct_expected_bindings(binding_map: &HashMap<String, String>, icst1: &ICst, icst2: &ICst) -> HashSet<String> {
+    // Construct a set of bindings that need to be observed in the cst for the models to match
+    // All bindings from the imdl that also appear in at least one icst
+
+    let icst1_bindings = extract_bindings_from_pattern(&icst1.params);
+    let icst2_bindings = extract_bindings_from_pattern(&icst2.params);
+
+    let mut results = HashSet::new();
+    for (b, b_mapped) in binding_map.iter() {
+        if icst1_bindings.contains(b) || icst2_bindings.contains(b_mapped) {
+            results.insert(b_mapped.clone());
+        }
+    }
+
+    results
+}
+
 fn compare_casual_models(model1: &Mdl, model2: &Mdl) -> bool {
+    // TODO: Bindings should be exact same after mapping
     let lhs_equal = match (&model1.left.pattern, &model2.left.pattern) {
         (MdlLeftValue::IMdl(imdl1), MdlLeftValue::IMdl(imdl2)) => {
             compare_imdls(imdl1, imdl2, true, false)
@@ -215,16 +248,18 @@ fn compare_casual_models(model1: &Mdl, model2: &Mdl) -> bool {
         _ => false,
     };
     // Assumes same order of functions
-    let forward_equal = model1
-        .forward_computed
-        .iter()
-        .zip(&model2.forward_computed)
-        .all(|((_, f1), (_, f2))| compare_functions(f1, f2));
-    let backward_equal = model1
-        .backward_computed
-        .iter()
-        .zip(&model2.backward_computed)
-        .all(|((_, f1), (_, f2))| compare_functions(f1, f2));
+    let forward_equal = model1.forward_computed.len() == model2.forward_computed.len()
+        && model1
+            .forward_computed
+            .iter()
+            .zip(&model2.forward_computed)
+            .all(|((_, f1), (_, f2))| compare_functions(f1, f2));
+    let backward_equal = model1.backward_computed.len() == model2.backward_computed.len()
+        && model2
+            .backward_computed
+            .iter()
+            .zip(&model2.backward_computed)
+            .all(|((_, f1), (_, f2))| compare_functions(f1, f2));
 
     lhs_equal && rhs_equal && forward_equal && backward_equal
 }
