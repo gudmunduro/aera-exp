@@ -340,7 +340,7 @@ pub fn setup_scenario_2(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(20.0),
+                Value::Number(60.0),
                 Value::Number(10.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
@@ -380,7 +380,7 @@ pub fn setup_scenario_2(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(60.0),
+                Value::Number(30.0),
                 Value::Number(-80.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
@@ -393,11 +393,21 @@ pub fn setup_scenario_2(system: &mut System) {
         params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(-60.0),
+                Value::Number(-90.0),
                 Value::Number(90.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
@@ -409,8 +419,20 @@ pub fn setup_scenario_2(system: &mut System) {
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
+                Value::Number(30.0),
+                Value::Number(-30.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
                 Value::Number(40.0),
-                Value::Number(-90.0),
+                Value::Number(-60.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -435,6 +457,16 @@ pub fn setup_scenario_2(system: &mut System) {
                 Value::Number(0.0),
             ])
         ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
     });
     system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
@@ -474,7 +506,7 @@ pub fn setup_scenario_2(system: &mut System) {
     system.goals = vec![
         vec![
             Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("co3".to_string()),
+                entity_id: EntityPatternValue::EntityId("co1".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
                     Value::UncertainNumber(340.0, 10.0),
@@ -488,7 +520,7 @@ pub fn setup_scenario_2(system: &mut System) {
         vec![
             // However here we want to move it by so much that it should now pick it up to move it
             Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("co3".to_string()),
+                entity_id: EntityPatternValue::EntityId("co1".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
                     Value::UncertainNumber(220.0, 10.0),

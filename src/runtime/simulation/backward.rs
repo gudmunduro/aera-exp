@@ -12,33 +12,8 @@ use std::hash::Hash;
 
 const MAX_DEPTH: usize = 7;
 
-pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<(IMdl, usize)> {
+pub fn backward_chain(goal: &Fact<MkVal>, data: &System) -> Vec<(IMdl, usize)> {
     let mut instantiable_cas_mdl = Vec::new();
-
-    let includes_unbound = goal
-        .iter()
-        .any(|g| g.pattern.entity_id.get_id_with_bindings(&HashMap::new()).is_none() ||g.pattern.value.get_value_with_bindings(&HashMap::new()).is_none());
-    let goal_variations = if false {
-        let entities = goal
-            .iter()
-            .filter_map(|g| {
-                let EntityPatternValue::Binding(entity_binding) = &g.pattern.entity_id else {
-                    return None;
-                };
-                let entity_for_variable = data.current_state.variables
-                    .iter()
-                    .find(|(k, v)| k.var_name == g.pattern.var_name)
-                    .map(|(k, _)| k.entity_id.clone())?;
-                let entity_class = data.find_class_of_entity(&entity_for_variable)?;
-
-                Some(EntityDeclaration::new(&entity_binding, &entity_class))
-            })
-            .collect_vec();
-        create_variations_of_sub_goal(goal, Some(&entities), data).into_iter().flatten().collect_vec()
-    }
-    else {
-      goal.clone()
-    };
 
     let req_models = all_req_models(data);
     for m_req in &req_models {
@@ -50,28 +25,26 @@ pub fn backward_chain(goal: &Vec<Fact<MkVal>>, data: &System) -> Vec<(IMdl, usiz
 
     let mut casual_models = all_causal_models(data);
     casual_models.retain(|m| m.confidence() > MODEL_CONFIDENCE_THRESHOLD && m.success_count > 1);
-    // TODO: Find all req models based on lhs on all causal models (to take confidence into account)
 
+    
     let mut state_prediction_models = all_assumption_models(data);
     state_prediction_models.extend(all_state_prediction_models(data));
+    
     let mut observed_goals = HashSet::new();
     let mut observed_csts = HashMap::new();
-    let mut goal_req_model_results = Vec::new();
-    for goal in goal_variations {
-        let goal_req_models = run_get_goal_requirements_for_goal(
-            &goal,
-            &instantiable_cas_mdl,
-            &casual_models,
-            &state_prediction_models,
-            data,
-            &mut observed_goals,
-            &mut observed_csts,
-        );
-        goal_req_model_results.extend(goal_req_models);
-    }
+    let goal_req_model_results = run_get_goal_requirements_for_goal(
+        &goal,
+        &instantiable_cas_mdl,
+        &casual_models,
+        &state_prediction_models,
+        data,
+        &mut observed_goals,
+        &mut observed_csts,
+    );
+    
     goal_req_model_results
         .into_iter()
-        // Quick and dirty way to remove duplicates
+        // Remove duplicate results
         .unique()
         .collect()
 }
@@ -264,6 +237,8 @@ pub(super) fn create_variations_of_sub_goal(
             })
             .map(|e| e.to_owned())
             .collect(),
+        success_count: 0,
+        failure_count: 0,
     };
     let mut possible_entity_binding = goal_cst.all_possible_entity_bindings(system);
     // Possible entity bindings can be zero if there are no entity declarations in cst

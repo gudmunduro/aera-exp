@@ -13,6 +13,8 @@ pub struct Cst {
     pub cst_id: String,
     pub facts: Vec<Fact<MkVal>>,
     pub entities: Vec<EntityDeclaration>,
+    pub success_count: usize,
+    pub failure_count: usize,
 }
 
 impl Cst {
@@ -21,6 +23,8 @@ impl Cst {
             cst_id,
             facts: Vec::new(),
             entities: Vec::new(),
+            success_count: 1,
+            failure_count: 0,
         }
     }
 
@@ -55,6 +59,8 @@ impl Cst {
             cst_id: self.cst_id.clone(),
             facts,
             entities: self.entities.clone(),
+            success_count: self.success_count,
+            failure_count: self.failure_count,
         }
     }
 
@@ -80,6 +86,25 @@ impl Cst {
             .map(|mappings| mappings.into_iter().collect())
             .collect()
     }
+    
+    pub fn promote(&mut self) {
+        self.success_count += 1;
+    }
+    
+    pub fn demote(&mut self) {
+        self.failure_count += 1;
+    }
+    
+    pub fn confidence(&self) -> f64 {
+        if self.failure_count == 0 && self.success_count < 2 {
+            0.6
+        }
+        else {
+            // Add 1 to both success and failure so models with few successes don't automatically get 100%
+            let evidence_count = (self.success_count + self.failure_count + 2) as f64;
+            ((self.success_count + 1) as f64 / evidence_count).min(1.0)
+        }
+    }
 }
 
 impl Display for Cst {
@@ -92,7 +117,8 @@ impl Display for Cst {
             writeln!(f, "  {fact}")?;
         }
         writeln!(f, "|[]")?;
-        write!(f, "|[])")?;
+        write!(f, "|[]")?;
+        write!(f, "); Confidence {}, Success count: {}, Failure count: {}", self.confidence(), self.success_count, self.failure_count)?;
 
         Ok(())
     }

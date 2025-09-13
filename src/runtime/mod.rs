@@ -153,7 +153,7 @@ pub fn run_with_tcp() {
     let tcp_send_interface = tcp_receive_interface.clone();
 
     run_aera(
-        seeds::scenario_2::setup_scenario_2,
+        seeds::robot_sift_learn::setup_robot_sift_learn_seed,
         |system| {
             let tcp_variables = tcp_receive_interface.lock().unwrap().update_variables();
             system.current_state.variables = tcp_variables;

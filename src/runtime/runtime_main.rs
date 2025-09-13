@@ -55,28 +55,36 @@ pub fn run_aera(seed: impl FnOnce(&mut System), receive_input: impl Fn(&mut Syst
         }
 
         let mut path = if system.babble_command.is_empty() {
-            // For debugging
-            if ENABLE_DEBUG {
-                try_to_find_expected_path(&goal, &system);
-                exit(0);
+            let mut res_path = Vec::new();
+            for g in goal.iter() {
+                // For debugging
+                if ENABLE_DEBUG {
+                    try_to_find_expected_path(&g, &system);
+                    exit(0);
+                }
+                save_models(&system);
+
+                // Perform backward chaining
+                let bwd_result = backward_chain(&g, &system);
+                log::debug!("Results of backward chaining");
+                for (mdl, _) in &bwd_result {
+                    log::debug!("{mdl}");
+                }
+
+                // Perform forward chaining
+                let path = forward_chain(&goal, &bwd_result, &system);
+                log::debug!("Results of forward chaining");
+                log::debug!("Goal reachable: {}", !path.is_empty());
+                log::debug!("{}", path.iter().map(|cmd| cmd.to_string()).collect::<Vec<String>>().join(", "));
+
+                last_was_babble_command = false;
+                if !path.is_empty() {
+                    res_path = path;
+                    break;
+                }
             }
-            save_models(&system);
-
-            // Perform backward chaining
-            let bwd_result = backward_chain(&goal, &system);
-            log::debug!("Results of backward chaining");
-            for (mdl, _) in &bwd_result {
-                log::debug!("{mdl}");
-            }
-
-            // Perform forward chaining
-            let mut path = forward_chain(&goal, &bwd_result, &system);
-            log::debug!("Results of forward chaining");
-            log::debug!("Goal reachable: {}", !path.is_empty());
-            log::debug!("{}", path.iter().map(|cmd| cmd.to_string()).collect::<Vec<String>>().join(", "));
-
-            last_was_babble_command = false;
-            path
+            
+            res_path
         } else {
             let command = system.babble_command[0].clone();
             system.babble_command.remove(0);

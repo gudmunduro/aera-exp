@@ -159,6 +159,7 @@ fn forward_chain_rec(
                         if node.is_in_goal_path {
                             node_min_goal_depth = node_min_goal_depth.min(node.min_goal_depth);
                             is_in_goal_path = true;
+                            forward_chain_state.min_solution_depth = forward_chain_state.min_solution_depth.min(depth+node.min_goal_depth);
                         }
                     }
 

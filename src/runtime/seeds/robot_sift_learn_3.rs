@@ -32,6 +32,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             )],
             entities: vec![EntityDeclaration::new("h", "hand")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -174,6 +176,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 EntityDeclaration::new("h", "hand"),
                 EntityDeclaration::new("co", "cam_obj"),
             ],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -270,6 +274,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 EntityDeclaration::new("co", "cam_obj"),
                 EntityDeclaration::new("h", "hand"),
             ],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 

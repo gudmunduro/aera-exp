@@ -32,6 +32,8 @@ pub fn setup_bindings_seed(system: &mut System) {
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             )],
             entities: vec![EntityDeclaration::new("hb", "hand")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -134,6 +136,8 @@ pub fn setup_bindings_seed(system: &mut System) {
                 ),
             ],
             entities: vec![EntityDeclaration::new("hb", "hand")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -227,6 +231,8 @@ pub fn setup_bindings_seed(system: &mut System) {
                 ),
             ],
             entities: vec![],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 

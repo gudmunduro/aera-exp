@@ -13,7 +13,7 @@ use super::backward::{backward_chain, create_variations_of_sub_goal};
 use crate::types::runtime::{RuntimeCommand, System, SystemState};
 use crate::types::value::Value;
 
-pub fn try_to_find_expected_path(goal: &Vec<Fact<MkVal>>, system: &System) {
+pub fn try_to_find_expected_path(goal: &Fact<MkVal>, system: &System) {
     let expected_path: Vec<Command> = vec![
         Command::new_values("move", "h", &vec![Value::Vec(vec![Value::Number(-19.0), Value::Number(-113.0), Value::Number(0.0), Value::Number(0.0)])]),
         Command::new_values("grab", "h", &vec![]),
@@ -120,11 +120,11 @@ fn validate_backwards_chaining_result(bwd_result: &Vec<(IMdl, usize)>, path: &Ve
     path_models
 }
 
-fn can_forward_chain_through_models(depth: usize, bwd_associated_models: &Vec<(MkVal, Vec<IMdl>)>, goal_requirements: &Vec<(IMdl, usize)>, goal: &Vec<Fact<MkVal>>, state: &SystemState, system: &System, command_path: &Vec<RuntimeCommand>) {
+fn can_forward_chain_through_models(depth: usize, bwd_associated_models: &Vec<(MkVal, Vec<IMdl>)>, goal_requirements: &Vec<(IMdl, usize)>, goal: &Fact<MkVal>, state: &SystemState, system: &System, command_path: &Vec<RuntimeCommand>) {
     if depth == bwd_associated_models.len() {
         log::info!("Executed all commands from path through found models");
         print_all_variables(state);
-        if state_matches_facts(&state, &goal) {
+        if state_matches_facts(&state, &vec![goal.clone()]) {
             log::info!("State matches goal");
             log::info!("Commands executed: {}", command_path.iter().map(|c| c.to_string()).collect::<Vec<String>>().join(", "));
         }

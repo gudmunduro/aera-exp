@@ -16,9 +16,14 @@ pub fn compute_instantiated_states(
         .csts
         .iter()
         .map(|(id, cst)| {
-            let csts = BoundCst::try_instantiate_from_state(cst, state, system);
+            if cst.confidence() > MODEL_CONFIDENCE_THRESHOLD {
+                let csts = BoundCst::try_instantiate_from_state(cst, state, system);
 
-            (id.clone(), csts)
+                (id.clone(), csts)
+            }
+            else {
+                (id.clone(), vec![])
+            }
         })
         .collect()
 }

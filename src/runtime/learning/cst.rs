@@ -107,6 +107,8 @@ fn form_new_cst_from_entity_vars(
         cst_id,
         facts,
         entities,
+        success_count: 1,
+        failure_count: 0,
     }
 }
 

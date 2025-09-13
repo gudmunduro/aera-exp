@@ -27,6 +27,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             )],
             entities: vec![EntityDeclaration::new("h", "hand")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -140,6 +142,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 ),
             ],
             entities: vec![EntityDeclaration::new("b", "box")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 
@@ -229,6 +233,8 @@ pub fn setup_hand_grab_sphere_seed(system: &mut System) {
                 ),
             ],
             entities: vec![EntityDeclaration::new("b", "box")],
+            success_count: 5,
+            failure_count: 0,
         },
     );
 

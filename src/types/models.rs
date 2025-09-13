@@ -247,7 +247,7 @@ impl Display for Mdl {
             writeln!(f, "  {binding}:{func}")?;
         }
 
-        write!(f, "); Confidence {}, Success count: {}", self.confidence(), self.success_count)?;
+        write!(f, "); Confidence {}, Success count: {}, Failure count: {}", self.confidence(), self.success_count, self.failure_count)?;
 
         Ok(())
     }

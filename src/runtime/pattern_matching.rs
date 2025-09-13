@@ -30,19 +30,23 @@ pub fn state_matches_facts(state: &SystemState, facts: &Vec<Fact<MkVal>>) -> boo
     }
 
     facts.iter().all(|f| {
-        let Some(entity_key) = f.pattern.entity_key(&HashMap::new()) else {
-            let matches_any_value = state
-                .variables
-                .iter()
-                .any(|(k, v)| k.entity_id != "co3" && k.var_name == f.pattern.var_name && Some(v) == f.pattern.value.get_value_with_bindings(&HashMap::new()).as_ref());
-            return matches_any_value;
-        };
-        state
-            .variables
-            .get(&entity_key)
-            .map(|v| *v == f.pattern.value)
-            .unwrap_or(false)
+        state_matches_fact(state, f)
     })
+}
+
+pub fn state_matches_fact(state: &SystemState, fact: &Fact<MkVal>) -> bool {
+    let Some(entity_key) = fact.pattern.entity_key(&HashMap::new()) else {
+        let matches_any_value = state
+            .variables
+            .iter()
+            .any(|(k, v)| k.entity_id != "co3" && k.var_name == fact.pattern.var_name && Some(v) == fact.pattern.value.get_value_with_bindings(&HashMap::new()).as_ref());
+        return matches_any_value;
+    };
+    state
+        .variables
+        .get(&entity_key)
+        .map(|v| *v == fact.pattern.value)
+        .unwrap_or(false)
 }
 
 /// Goals are considered equal even if timing is not the same

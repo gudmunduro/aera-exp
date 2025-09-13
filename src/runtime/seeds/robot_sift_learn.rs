@@ -32,6 +32,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 TimePatternRange::new(TimePatternValue::Any, TimePatternValue::Any),
             )],
             entities: vec![EntityDeclaration::new("h", "hand")],
+            success_count: 30,
+            failure_count: 0,
         },
     );
 
@@ -70,7 +72,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -131,7 +133,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 ),
             ].into(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -174,6 +176,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 EntityDeclaration::new("h", "hand"),
                 EntityDeclaration::new("co", "cam_obj"),
             ],
+            success_count: 30,
+            failure_count: 0,
         },
     );
 
@@ -208,7 +212,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -236,7 +240,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: [].into(),
             backward_computed: [].into(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -270,6 +274,8 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 EntityDeclaration::new("co", "cam_obj"),
                 EntityDeclaration::new("h", "hand"),
             ],
+            success_count: 30,
+            failure_count: 0,
         },
     );
 
@@ -303,7 +309,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -331,7 +337,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: [].into(),
             backward_computed: [].into(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -374,7 +380,7 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
             forward_computed: Default::default(),
             backward_computed: Default::default(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
@@ -435,182 +441,274 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
                 ),
             ].into(),
             failure_count: 0,
-            success_count: 1,
+            success_count: 30,
         },
     );
 
-    /*system.babble_command.push(RuntimeCommand {
+    // Starting pos 290, 0, 0, 180
+    // Move to co1 (blue)
+    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(40.0),
                 Value::Number(0.0),
+                Value::Number(80.0),
+                Value::Number(0.0),
+                Value::Number(0.0)
+            ])
+        ],
+    });
+    // Grab it
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    // Move over co3 (green)
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(-140.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
-    });*/
-
-    // Babble commands for basic demo (that doesn't use tcp)
-    /*system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
     });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
+    // Release it
     system.babble_command.push(RuntimeCommand {
         name: "release".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
+    // Observe that co1 falls onto co3 (and stays there)
 
-    system.goals = vec![
-        vec![
-            Fact::new(MkVal {
-                entity_id: EntityPatternValue::EntityId("h".to_string()),
-                var_name: "holding".to_string(),
-                value: PatternItem::Vec(vec![PatternItem::Binding("co1".to_string())]),
-                assumption: false,
-            }, TimePatternRange::wildcard())
-        ]
-    ];*/
 
-    // Simpler demo
-    /*
+    //
+    //
+    // Second attempt to confirm everything
+    //
+    //
+
+    // Move a bit outside the frame to allow scene to be reset
     system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
+                Value::Number(0.0),
+                Value::Number(-100.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
     });
     system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });*/
-
-
-    /*system.babble_command.push(RuntimeCommand {
-        name: "move".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![
-            Value::Vec(vec![
-                Value::Number(40.0),
-                Value::Number(30.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ])
-        ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co1".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
-        name: "grab".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
-    });
-    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
                 Value::Number(0.0),
-                Value::Number(-80.0),
+                Value::Number(160.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
     });
+
+    // Move to co1 (blue)
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(80.0),
+                Value::Number(0.0),
+                Value::Number(0.0)
+            ]),
+        ],
+    });
+    // Grab it
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    // Move over co3 (green)
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(-140.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    // Release it
     system.babble_command.push(RuntimeCommand {
         name: "release".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
-    /*system.babble_command.push(RuntimeCommand {
+
+
+    //
+    //
+    // Now with co2 (red)
+    //
+    //
+
+    // Move a bit outside the frame to allow scene to be reset
+    system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(-100.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(100.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+
+    // Move to co2 (red)
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(50.0),
                 Value::Number(60.0),
-                Value::Number(50.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
-    });*/
-    system.babble_command.push(RuntimeCommand {
-        name: "move_co2".to_string(),
-        entity_id: "h".to_string(),
-        params: vec![],
     });
+    // Grab it
     system.babble_command.push(RuntimeCommand {
         name: "grab".to_string(),
         entity_id: "h".to_string(),
         params: vec![],
     });
+    // Move over co3 (green)
     system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(-60.0),
                 Value::Number(-50.0),
+                Value::Number(-60.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    // Release it
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    // Observe that co2 rolls away (does not fall straight down)
+
+    //
+    //
+    // Second attempt to confirm everything
+    //
+    //
+
+    // Move a bit outside the frame to allow scene to be reset
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(-100.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
         ],
     });
     system.babble_command.push(RuntimeCommand {
-        name: "release".to_string(),
+        name: "move".to_string(),
         entity_id: "h".to_string(),
-        params: vec![],
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(100.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
     });
+
+    // Move over to c2
     system.babble_command.push(RuntimeCommand {
         name: "move".to_string(),
         entity_id: "h".to_string(),
         params: vec![
             Value::Vec(vec![
-                Value::Number(-40.0),
                 Value::Number(50.0),
+                Value::Number(60.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    // Grab it
+    system.babble_command.push(RuntimeCommand {
+        name: "grab".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    // Move over co1 (blue)
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(-50.0),
+                Value::Number(-60.0),
+                Value::Number(0.0),
+                Value::Number(0.0),
+            ])
+        ],
+    });
+    // Release it
+    system.babble_command.push(RuntimeCommand {
+        name: "release".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![],
+    });
+    // Move back to the starting position
+    system.babble_command.push(RuntimeCommand {
+        name: "move".to_string(),
+        entity_id: "h".to_string(),
+        params: vec![
+            Value::Vec(vec![
+                Value::Number(0.0),
+                Value::Number(60.0),
                 Value::Number(0.0),
                 Value::Number(0.0),
             ])
@@ -631,8 +729,19 @@ pub fn setup_robot_sift_learn_seed(system: &mut System) {
         ],*/
         vec![
             Fact::new(MkVal {
-                entity_id: EntityPatternValue::Binding("co_o".to_string()),
-                // entity_id: EntityPatternValue::EntityId("co1".to_string()),
+                entity_id: EntityPatternValue::EntityId("co2".to_string()),
+                var_name: "approximate_pos".to_string(),
+                value: PatternItem::Value(Value::Vec(vec![
+                    Value::UncertainNumber(228.00441002220657, 10.0),
+                    Value::UncertainNumber(-49.99883096646674, 10.0),
+                    Value::UncertainNumber(-100.0, 10.0),
+                    Value::UncertainNumber(180.0, 10.0)
+                ])),
+                assumption: false,
+            }, TimePatternRange::wildcard()),
+            Fact::new(MkVal {
+                //entity_id: EntityPatternValue::Binding("co_o".to_string()),
+                entity_id: EntityPatternValue::EntityId("co1".to_string()),
                 var_name: "approximate_pos".to_string(),
                 value: PatternItem::Value(Value::Vec(vec![
                     Value::UncertainNumber(228.00441002220657, 10.0),

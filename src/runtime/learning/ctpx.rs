@@ -336,6 +336,14 @@ fn check_and_merge_with_existing_model(cst: &Cst, req_model: &Mdl, casual_model:
     
     // Since the model would have succeeded if it had already been merged, promote it
     system.models.get_mut(&new_casual_model.model_id).unwrap().promote();
+
+    // Update confidence to same as the causal model (to keep cst and model in sync)
+    if let Some(cst_ref) = system.csts.get_mut(&new_cst_id) {
+        cst_ref.success_count = new_casual_model.success_count;
+        cst_ref.failure_count = new_casual_model.failure_count;
+        // Hack to take into account the promotion of the model
+        cst_ref.promote();
+    }
     
     let new_cst = system.csts.get(&new_cst_id).unwrap();
     let new_req_model_ref = system.models.get_mut(&new_req_model.model_id).unwrap();
